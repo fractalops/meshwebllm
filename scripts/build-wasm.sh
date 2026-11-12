@@ -23,7 +23,7 @@ if [[ "$(uname)" == "Darwin" && -z "${CC_wasm32_unknown_unknown:-}" ]]; then
   fi
 fi
 
-cargo build -p meshwebllm-web --target wasm32-unknown-unknown "${cargo_flags[@]}"
+cargo build -p meshwebllm-web --target wasm32-unknown-unknown ${cargo_flags[@]+"${cargo_flags[@]}"}
 wasm-bindgen "target/wasm32-unknown-unknown/$profile/meshwebllm_web.wasm" \
   --out-dir web/src/wasm --target web --weak-refs
 
