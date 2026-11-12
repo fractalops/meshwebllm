@@ -84,7 +84,8 @@ Workers with different models are in the same pool. The `ask` command does not c
 - To contribute, the browser must support WebGPU and allow at least 10 storage buffers per shader stage. WebLLM needs this for every model. The page checks the GPU on load and disables **Contribute my GPU** with the reason when the browser does not meet it. Chrome and Edge on a recent GPU usually do.
 - The tab keeps its secret key in `localStorage`, so its endpoint ID stays the same across visits.
 - The model runs in a Web Worker. The browser caches the model files after the first download.
-- Model loading tries up to 3 times. Retries wait 2 seconds, then 4 seconds. Cached files are kept. The row and dialog show download progress. The dialog includes the size when WebLLM reports it.
+- Weight downloads finish one shard at a time before the browser caches them. Each shard must match the byte count in the model manifest. This avoids the `Cache.add()` network error seen with streaming cache writes. The page shows bytes received during the download.
+- Model loading tries up to 3 times. Retries wait 2 seconds, then 4 seconds. Cached files are kept. The row and dialog show download progress. The dialog shows downloaded bytes and the total weight size.
 - Firefox on Apple silicon can report only 9 storage buffers per shader stage. Use Chrome or Edge on these Macs.
 - The tab runs one completion at a time. Two more requests can wait. Further requests get a `Busy` error.
 - When you pause, the running completion stops and its client gets a `Paused` error.
@@ -144,7 +145,7 @@ If the stream ends before `Done` or `Error`, the client reports an incomplete co
 
 ## Build from source
 
-You need Rust with the `wasm32-unknown-unknown` target, `wasm-bindgen-cli` at the same version as the `wasm-bindgen` crate in `Cargo.lock`, and Node.js 22. On macOS, also install LLVM (`brew install llvm`). Apple clang cannot compile C code for wasm32.
+You need Rust with the `wasm32-unknown-unknown` target, `wasm-bindgen-cli` at the same version as the `wasm-bindgen` crate in `Cargo.lock`, and Node.js 22.18 or later. On macOS, also install LLVM (`brew install llvm`). Apple clang cannot compile C code for wasm32.
 
 Build and run the command-line tool:
 
@@ -165,6 +166,7 @@ Run the tests:
 
 ```
 cargo test --workspace --exclude meshwebllm-web
+npm --prefix web test
 ```
 
 ## Deployment

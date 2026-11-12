@@ -2,9 +2,10 @@
  * Turns this tab into a worker: loads the model, takes jobs from the Wasm
  * node, streams WebLLM output back, and announces status to the pool.
  */
-import { CreateWebWorkerMLCEngine, type MLCEngineInterface } from "@mlc-ai/web-llm";
+import { CreateWebWorkerMLCEngine, prebuiltAppConfig, type MLCEngineInterface } from "@mlc-ai/web-llm";
 import type { Job, MeshNode } from "./wasm/meshwebllm_web.js";
 import { MODEL } from "./config";
+import { cacheModelWeights } from "./model-cache";
 import type { CompletionRequest, WorkerInfo, WorkerState } from "./types";
 
 export type Log = (msg: string, cls?: string) => void;
@@ -39,6 +40,14 @@ export class Contributor {
         try {
           this.progressText = `Loading model. Attempt ${attempt} of 3.`;
           this.changed();
+          const model = prebuiltAppConfig.model_list.find((m) => m.model_id === MODEL.id);
+          if (!model) throw new Error(`Unknown model: ${MODEL.id}`);
+          await cacheModelWeights(model.model, ({ loaded, total }) => {
+            const percent = Math.floor(loaded / total * 100);
+            this.state = { loading: { percent } };
+            this.progressText = `Attempt ${attempt} of 3 · ${percent}% · ${(loaded / 1e6).toFixed(1)} MB / ${(total / 1e6).toFixed(1)} MB`;
+            this.announce();
+          });
           this.engine = await CreateWebWorkerMLCEngine(worker, MODEL.id, {
             initProgressCallback: (p) => {
               const percent = Math.max(0, Math.min(100, Math.floor(p.progress * 100)));
@@ -161,7 +170,6 @@ export class Contributor {
         const text = chunk.choices[0]?.delta?.content;
         if (text) {
           await job.chunk(text);
-
         }
         if (chunk.usage) {
           prompt = chunk.usage.prompt_tokens;
