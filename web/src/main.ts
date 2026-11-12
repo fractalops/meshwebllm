@@ -1,6 +1,6 @@
 import init, { MeshNode } from "./wasm/meshwebllm_web.js";
 import { HEARTBEAT_S, MODEL, POOL_NAME, STALE_S, bootstrapIds } from "./config";
-import { Contributor, describeAdapter } from "./contributor";
+import { Contributor, checkGpu } from "./contributor";
 import { type Member, type PoolEvent, shortId, stateName } from "./types";
 
 const KEY_STORAGE = "meshwebllm.secretKey";
@@ -12,6 +12,8 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 let node: MeshNode | undefined;
 let me: Contributor | undefined;
 let adapter: string | null = null;
+/** Why this browser cannot contribute, or null when it can. */
+let gpuProblem: string | null = "checking the GPU";
 let rows: Member[] = [];
 let sel: string | null = null;
 let fStatus = 0;
@@ -190,7 +192,8 @@ function render(): void {
   $("fSort").textContent = SORTS[fSort];
 
   const btn = $<HTMLButtonElement>("contribute");
-  btn.disabled = !node || adapter === null;
+  btn.disabled = !node || adapter === null || gpuProblem !== null;
+  btn.title = gpuProblem ?? "";
   btn.textContent = !me ? "Contribute my GPU [c]" : me.isPaused ? "Resume [p]" : "Pause [p]";
   btn.classList.toggle("on", !!me && !me.isPaused);
   $("youMode").textContent = me ? "worker" : "observer";
@@ -295,7 +298,7 @@ function move(d: number): void {
 
 function openDialog(): void {
   if (me) return togglePause();
-  if (!node || adapter === null) return;
+  if (!node || adapter === null || gpuProblem !== null) return;
   $("overlay").hidden = false;
   $("dlgOk").focus();
 }
@@ -314,7 +317,7 @@ function togglePause(): void {
 
 async function contribute(): Promise<void> {
   closeDialog();
-  if (!node || adapter === null || me) return;
+  if (!node || adapter === null || gpuProblem !== null || me) return;
   me = new Contributor(node, adapter, log);
   sel = node.endpointId();
   log(`downloading ${MODEL.id} (${MODEL.downloadGB} GB)`, "acc");
@@ -416,10 +419,12 @@ async function main(): Promise<void> {
   bindUi();
   render();
 
-  adapter = await describeAdapter().catch(() => null);
+  const gpu = await checkGpu().catch(() => null);
+  adapter = gpu?.name ?? null;
+  gpuProblem = gpu ? gpu.problem : "this browser has no WebGPU";
   $("dlgGpu").textContent = adapter ? `Detected GPU: ${adapter}` : "";
-  if (adapter === null) {
-    log("this browser has no WebGPU. You can watch the pool but not contribute.", "busy");
+  if (gpuProblem) {
+    log(`this browser cannot contribute: ${gpuProblem}. You can still watch the pool. Chrome or Edge on a recent GPU usually works.`, "busy");
   }
 
   const bootstrap = bootstrapIds();

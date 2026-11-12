@@ -168,12 +168,38 @@ export class Contributor {
   }
 }
 
-/** GPU vendor and architecture as the browser reports them. */
-export async function describeAdapter(): Promise<string | null> {
+/** The GPU as the browser reports it, and whether WebLLM can run on it. */
+export interface GpuCheck {
+  /** Vendor and architecture, for example "apple · metal-3". */
+  name: string;
+  /** Why WebLLM cannot run here, or null when it can. */
+  problem: string | null;
+}
+
+/**
+ * Device limits that WebLLM 0.2.88 requires. Its runtime throws when the
+ * adapter reports less. The values are copied from its device setup code.
+ */
+const REQUIRED_LIMITS: [keyof GPUSupportedLimits, number][] = [
+  ["maxStorageBuffersPerShaderStage", 10],
+  ["maxComputeWorkgroupStorageSize", 32 << 10],
+  ["maxStorageBufferBindingSize", 1 << 27],
+  ["maxBufferSize", 1 << 28],
+];
+
+/** Checks the GPU before the model is downloaded. Returns null without WebGPU. */
+export async function checkGpu(): Promise<GpuCheck | null> {
   if (!("gpu" in navigator)) return null;
   const adapter = await navigator.gpu.requestAdapter();
   if (!adapter) return null;
   const info = adapter.info;
   const parts = [info?.vendor, info?.architecture].filter((s) => s && s.length > 0);
-  return parts.length ? parts.join(" · ") : "unknown gpu";
+  const name = parts.length ? parts.join(" · ") : "unknown gpu";
+  for (const [limit, required] of REQUIRED_LIMITS) {
+    const actual = adapter.limits[limit] as number;
+    if (actual < required) {
+      return { name, problem: `this browser allows ${limit}=${actual}, WebLLM needs ${required}` };
+    }
+  }
+  return { name, problem: null };
 }

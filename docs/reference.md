@@ -81,6 +81,7 @@ Workers with different models are in the same pool. The `ask` command does not c
 
 ### Worker tab
 
+- To contribute, the browser must support WebGPU and allow at least 10 storage buffers per shader stage. WebLLM needs this for every model. The page checks the GPU on load and disables **Contribute my GPU** with the reason when the browser does not meet it. Chrome and Edge on a recent GPU usually do.
 - The tab keeps its secret key in `localStorage`, so its endpoint ID stays the same across visits.
 - The model runs in a Web Worker. The browser caches the model files after the first download.
 - The tab runs one completion at a time. Two more requests can wait. Further requests get a `Busy` error.
