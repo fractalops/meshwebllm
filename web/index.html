@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>meshwebllm pool</title>
+  <meta name="description" content="Browser tabs that run WebLLM and serve prompts from the meshwebllm command-line tool.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 rx=%273%27 fill=%27%230f1620%27/%3E%3Ccircle cx=%275%27 cy=%275%27 r=%272%27 fill=%27%236cc4e8%27/%3E%3Ccircle cx=%2711%27 cy=%277%27 r=%272%27 fill=%27%237cc98a%27/%3E%3Ccircle cx=%276%27 cy=%2712%27 r=%272%27 fill=%27%23e5b45a%27/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+<div class="app">
+  <fieldset class="head">
+    <legend><b>meshwebllm</b> · public pool</legend>
+    <span><span class="k">pool:</span> <span class="v" id="poolName"></span></span><span class="sep">│</span>
+    <span><span class="k">model:</span> <span class="v" id="modelName"></span> <span class="dim" id="modelSize"></span></span><span class="sep">│</span>
+    <span><span class="k">network:</span> <span id="netStatus" class="busy">starting</span></span><span class="sep">│</span>
+    <span><span class="k">gossip:</span> <span class="v" id="gossipPeers">–</span></span><span class="sep">│</span>
+    <span><span class="k">you:</span> <span class="acc" id="youMode">observer</span> <span class="dim" id="youId"></span></span>
+  </fieldset>
+
+  <fieldset class="notice" id="notice" hidden><legend>Notice</legend><div id="noticeText"></div></fieldset>
+
+  <div class="stats">
+    <fieldset class="stat"><legend>Workers</legend><div class="big" id="sWorkers">0</div><div class="sub" id="sWorkersSub">waiting for the pool</div></fieldset>
+    <fieldset class="stat"><legend>Pool tok/s*</legend><div class="big" id="sTps">0</div><svg id="sTpsSpark" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true"></svg></fieldset>
+    <fieldset class="stat"><legend>Completions / min</legend><div class="big" id="sCpm">0</div><div class="sub" id="sQueue">0 jobs waiting</div></fieldset>
+    <fieldset class="stat"><legend>Tokens served*</legend><div class="big" id="sTokens">0</div><div class="sub">by workers online now</div></fieldset>
+  </div>
+
+  <div class="controls">
+    <fieldset class="search"><legend>Search</legend><input id="q" placeholder="Press / to search…" autocomplete="off"></fieldset>
+    <fieldset><legend>Status [s]</legend><button class="cycle" id="fStatus">All</button></fieldset>
+    <fieldset><legend>Adapter [a]</legend><button class="cycle" id="fArch">All</button></fieldset>
+    <fieldset><legend>Sort [o]</legend><button class="cycle" id="fSort">Load</button></fieldset>
+    <button class="cta" id="contribute" disabled>Contribute my GPU [c]</button>
+  </div>
+
+  <div class="main">
+    <fieldset>
+      <legend>Workers (<span id="countShown">0</span>/<span id="countAll">0</span>)</legend>
+      <div class="tablewrap">
+        <table>
+          <thead><tr>
+            <th></th><th>Endpoint</th><th>Adapter</th><th>Status</th><th>Load</th>
+            <th class="n">Jobs</th><th class="n">Served</th><th class="n">Tokens</th><th class="n">tok/s*</th>
+            <th class="n">Uptime</th><th class="n">Beat</th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </fieldset>
+    <div class="side">
+      <fieldset class="detail"><legend>Selected</legend><div id="detail" class="dim">Select a worker with ↑↓ or a click.</div></fieldset>
+      <fieldset><legend>Events</legend><ul class="log" id="log"></ul></fieldset>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span class="mode" id="mode">OBSERVE</span>
+    <span><kbd>↑↓</kbd> nav</span><span><kbd>/</kbd> search</span><span><kbd>s</kbd> status</span><span><kbd>a</kbd> adapter</span>
+    <span><kbd>o</kbd> sort</span><span><kbd>c</kbd> contribute</span><span><kbd>p</kbd> pause</span><span><kbd>Esc</kbd> clear</span>
+    <span>* reported by each worker</span>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <fieldset class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+    <legend><b id="dlgTitle">Contribute this GPU</b></legend>
+    <p>This tab joins the pool as a worker and runs prompts from other people.</p>
+    <ul>
+      <li>It downloads <span class="acc" id="dlgModel"></span>: <b id="dlgSize"></b>. The browser keeps it for later visits.</li>
+      <li>The model needs about <b id="dlgVram"></b> of GPU memory.</li>
+      <li>Prompts are encrypted on the network. This tab must read them to run them.</li>
+      <li>Keep the tab visible. Browsers can freeze hidden tabs and stop running jobs.</li>
+      <li>Press <kbd>p</kbd> to pause at any time.</li>
+    </ul>
+    <p class="dim" id="dlgGpu"></p>
+    <div class="row">
+      <button class="ghost" id="dlgCancel">Cancel</button>
+      <button class="cta" id="dlgOk">Download and contribute</button>
+    </div>
+  </fieldset>
+</div>
+<script type="module" src="./src/main.ts"></script>
+</body>
+</html>

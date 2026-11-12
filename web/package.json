@@ -1,0 +1,21 @@
+{
+  "name": "meshwebllm-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "wasm": "../scripts/build-wasm.sh",
+    "wasm:dev": "../scripts/build-wasm.sh --dev",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@mlc-ai/web-llm": "0.2.88"
+  },
+  "devDependencies": {
+    "@webgpu/types": "0.1.60",
+    "typescript": "5.8.3",
+    "vite": "6.3.5"
+  }
+}

@@ -1,0 +1,27 @@
+[workspace]
+resolver = "3"
+members = ["crates/core", "crates/cli", "crates/web"]
+default-members = ["crates/core", "crates/cli"]
+
+[workspace.package]
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/fractalops/meshwebllm"
+
+[workspace.dependencies]
+iroh = { version = "1.4", default-features = false, features = ["tls-ring"] }
+iroh-gossip = { version = "0.102", default-features = false, features = ["net"] }
+anyhow = "1"
+thiserror = "2"
+bytes = "1"
+async-channel = "2"
+n0-future = "0.3"
+postcard = { version = "1", features = ["use-std"] }
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", default-features = false, features = ["sync", "io-util"] }
+tracing = "0.1"
+meshwebllm-core = { path = "crates/core" }
+
+[profile.release.package.meshwebllm-web]
+opt-level = "z"
+codegen-units = 1
