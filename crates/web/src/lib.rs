@@ -175,6 +175,17 @@ impl MeshNode {
         to_js(&view)
     }
 
+    /// Coalesced roster and neighbor invalidations. Read `roster()` on each item.
+    #[wasm_bindgen(js_name = rosterUpdates)]
+    pub fn roster_updates(&self) -> JsReadableStream {
+        let rx = self.pool.updates();
+        let stream = n0_future::stream::unfold(rx, |rx| async move {
+            rx.recv().await.ok()?;
+            Some((Ok::<_, JsValue>(JsValue::NULL), rx))
+        });
+        ReadableStream::from_stream(stream).into_raw()
+    }
+
     /// Membership changes as `{ kind, id }` objects.
     pub fn events(&self) -> JsReadableStream {
         let rx = self.pool.events();

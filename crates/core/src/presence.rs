@@ -153,7 +153,6 @@ pub struct Member {
     pub first_seen_ms: u64,
     /// Receiver time of the latest announcement.
     pub last_seen_ms: u64,
-    sender_timestamp_ms: u64,
 }
 
 impl Member {
@@ -180,6 +179,9 @@ pub enum RosterEvent {
 #[derive(Debug, Default, Clone)]
 pub struct Roster {
     members: HashMap<EndpointId, Member>,
+    // Keep sequence floors after leave and expiry to reject old packets.
+    timestamps: HashMap<EndpointId, u64>,
+    revision: u64,
 }
 
 impl Roster {
@@ -189,6 +191,16 @@ impl Roster {
 
     /// Applies one announcement received at `now_ms`.
     pub fn apply(&mut self, msg: Received, now_ms: u64) -> Option<RosterEvent> {
+        if matches!(msg.announcement, Announcement::Hello)
+            || self
+                .timestamps
+                .get(&msg.from)
+                .is_some_and(|ts| msg.timestamp_ms <= *ts)
+        {
+            return None;
+        }
+        self.timestamps.insert(msg.from, msg.timestamp_ms);
+        self.revision += 1;
         match msg.announcement {
             Announcement::Leave => self
                 .members
@@ -197,12 +209,8 @@ impl Roster {
             Announcement::Hello => None,
             Announcement::Worker(info) => match self.members.get_mut(&msg.from) {
                 Some(m) => {
-                    // Ignore replays and reordered messages.
-                    if msg.timestamp_ms > m.sender_timestamp_ms {
-                        m.info = info;
-                        m.last_seen_ms = now_ms;
-                        m.sender_timestamp_ms = msg.timestamp_ms;
-                    }
+                    m.info = info;
+                    m.last_seen_ms = now_ms;
                     None
                 }
                 None => {
@@ -213,7 +221,6 @@ impl Roster {
                             info,
                             first_seen_ms: now_ms,
                             last_seen_ms: now_ms,
-                            sender_timestamp_ms: msg.timestamp_ms,
                         },
                     );
                     Some(RosterEvent::Joined(msg.from))
@@ -238,6 +245,10 @@ impl Roster {
             }
         });
         events
+    }
+
+    pub fn revision(&self) -> u64 {
+        self.revision
     }
 
     pub fn get(&self, id: &EndpointId) -> Option<&Member> {
@@ -297,6 +308,29 @@ mod tests {
 
     fn received(key: &SecretKey, ts: u64, a: Announcement) -> Received {
         decode(&encode(key, ts, &a).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn replay_cannot_remove_or_revive_a_worker() {
+        let key = SecretKey::generate();
+        let mut r = Roster::new();
+        let worker = || Announcement::Worker(info(WorkerState::Busy, 12.0, 2));
+        r.apply(received(&key, 10, worker()), 0);
+        let revision = r.revision();
+        assert_eq!(r.apply(received(&key, 9, Announcement::Leave), 1), None);
+        assert_eq!(r.revision(), revision);
+        assert_eq!(r.len(), 1);
+        r.apply(received(&key, 11, Announcement::Leave), 2);
+        assert_eq!(r.apply(received(&key, 10, worker()), 3), None);
+        assert!(r.is_empty());
+        r.apply(received(&key, 12, worker()), 4);
+        r.sweep(4, 50_000);
+        assert_eq!(r.apply(received(&key, 12, worker()), 50_001), None);
+        assert!(r.is_empty());
+        assert_eq!(
+            r.apply(received(&key, 13, worker()), 50_002),
+            Some(RosterEvent::Joined(key.public()))
+        );
     }
 
     #[test]
