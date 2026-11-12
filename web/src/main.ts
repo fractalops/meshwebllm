@@ -152,6 +152,33 @@ function spark(svg: SVGElement, data: number[], h: number): void {
     `<circle cx="${lx}" cy="${ly}" r="2" fill="var(--accent)"/>`;
 }
 
+const displayed = new Map<string, number>();
+let animation = 0;
+function animateNumbers(): void {
+  cancelAnimationFrame(animation);
+  const elements = [...document.querySelectorAll<HTMLElement>("[data-metric]")];
+  const values = elements.map((el) => {
+    const key = el.dataset.metric!;
+    const target = Number(el.dataset.value);
+    return { el, key, target, from: displayed.get(key) ?? target };
+  });
+  const start = performance.now();
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const frame = (now: number) => {
+    const t = reduced ? 1 : Math.min(1, (now - start) / 400);
+    for (const { el, key, target, from } of values) {
+      const value = from + (target - from) * t;
+      displayed.set(key, value);
+      el.textContent = key.endsWith("speed") ? value.toFixed(1) : fmt(value);
+    }
+    if (t < 1) animation = requestAnimationFrame(frame);
+  };
+  frame(start);
+}
+function metric(key: string, value: number): string {
+  return `<span data-metric="${key}" data-value="${value}">${fmt(value)}</span>`;
+}
+
 function render(): void {
   const list = visible();
   const selfId = node?.endpointId();
@@ -165,8 +192,8 @@ function render(): void {
           <td class="dot ${STATUS_CLASS[status(m)]}">●</td><td>${shortId(m.id)}</td><td class="dim">${esc(m.info.adapter)}</td>
           <td>${statusCell(m)}</td><td>${bar(m)}</td>
           <td class="n">${jobs ? `${m.info.active}${m.info.waiting ? `<span class="dim">+${m.info.waiting}</span>` : ""}` : `<span class="dim">0</span>`}</td>
-          <td class="n">${m.info.served}</td><td class="n">${fmt(m.info.tokensOut)}</td>
-          <td class="n">${m.info.tokensPerSec ? m.info.tokensPerSec.toFixed(1) : `<span class="dim">—</span>`}</td>
+          <td class="n">${metric(m.id + "served", m.info.served)}</td><td class="n">${metric(m.id + "tokens", m.info.tokensOut)}</td>
+          <td class="n">${metric(m.id + "speed", m.info.tokensPerSec)}</td>
           <td class="n dim">${dur(m.info.uptimeSecs)}</td><td class="n">${beat}</td></tr>`;
         })
         .join("")
@@ -180,11 +207,11 @@ function render(): void {
   const count = (s: string) => all.filter((m) => status(m) === s).length;
   $("sWorkers").textContent = String(all.length);
   $("sWorkersSub").innerHTML = `<span class="busy">${count("busy")} busy</span> · <span class="ok">${count("idle")} idle</span> · <span class="acc">${count("loading")} loading</span> · <span class="bad">${count("stale")} stale</span>`;
-  $("sTps").textContent = String(Math.round(poolHistory[poolHistory.length - 1] ?? 0));
+  $("sTps").innerHTML = metric("pool-speed", all.filter((m) => status(m) === "busy").reduce((sum, m) => sum + m.info.tokensPerSec, 0));
   spark($("sTpsSpark") as unknown as SVGElement, poolHistory, 26);
   $("sCpm").textContent = String(completions.length);
   $("sQueue").textContent = `${all.reduce((a, m) => a + m.info.waiting, 0)} jobs waiting`;
-  $("sTokens").textContent = fmt(all.reduce((a, m) => a + m.info.tokensOut, 0));
+  $("sTokens").innerHTML = metric("pool-tokens", all.reduce((a, m) => a + m.info.tokensOut, 0));
   $("gossipPeers").textContent = node ? `${node.neighbors()} neighbors` : "–";
 
   $("fStatus").textContent = STATUS[fStatus];
@@ -199,6 +226,19 @@ function render(): void {
   $("youMode").textContent = me ? "worker" : "observer";
   $("mode").textContent = me ? "WORKER" : "OBSERVE";
   renderDetail();
+  $("dlgProgress").textContent = me?.progressText ?? $("dlgProgress").textContent;
+  $<HTMLButtonElement>("dlgOk").disabled = !!me;
+  $("dlgCancel").textContent = me ? "Close" : "Cancel";
+  if (me && typeof me.state !== "string") {
+    btn.textContent = "Loading model… [c]";
+    const own = $("rows").querySelector(`tr[data-id="${selfId}"] td:nth-child(4)`);
+    if (own) {
+      own.setAttribute("title", me.progressText);
+      const mb = me.progressText.match(/[\d.]+\s*(?:MB|MiB)(?:\s*\/\s*[\d.]+\s*(?:MB|MiB))?/i)?.[0];
+      if (mb) own.append(document.createTextNode(` · ${mb}`));
+    }
+  }
+  animateNumbers();
 }
 
 function renderDetail(): void {
@@ -224,7 +264,7 @@ function renderDetail(): void {
     </dl>
     <svg id="dSpark" viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true"></svg>
     <div class="dim" style="font-size:12px">${isMe ? "tokens per second, last 60 s" : "reported tokens per second while busy, last 60 s"}</div>`;
-  const series = isMe && me ? me.history : history.get(m.id) ?? [];
+  const series = history.get(m.id) ?? [];
   spark($("dSpark") as unknown as SVGElement, series, 60);
   $("copyAsk").onclick = () => {
     const cmd = `meshwebllm ask --worker ${m.id} "Hello"`;
@@ -235,14 +275,9 @@ function renderDetail(): void {
   };
 }
 
-/** Samples the roster once per second. */
+/** Advances chart history and clock labels from the latest received state. */
 function tick(): void {
   if (!node) return;
-  try {
-    rows = node.roster() as Member[];
-  } catch (err) {
-    console.warn("roster failed", err);
-  }
   const now = Date.now();
   let pool = 0;
   for (const m of allRows()) {
@@ -253,17 +288,45 @@ function tick(): void {
     h.push(v);
     if (h.length > 60) h.shift();
     history.set(m.id, h);
-    const prev = lastServed.get(m.id);
-    if (prev !== undefined && m.info.served > prev) {
-      for (let i = prev; i < m.info.served; i++) completions.push(now);
-    }
-    lastServed.set(m.id, m.info.served);
   }
   poolHistory.push(pool);
   if (poolHistory.length > 60) poolHistory.shift();
   while (completions.length && now - completions[0] > 60_000) completions.shift();
-  if (sel && !allRows().some((m) => m.id === sel)) sel = null;
+  refresh();
+}
+
+function refresh(): void {
+  const members = allRows();
+  const ids = new Set(members.map((m) => m.id));
+  for (const id of lastServed.keys()) {
+    if (!ids.has(id)) {
+      lastServed.delete(id);
+      history.delete(id);
+      for (const field of ["served", "tokens", "speed"]) displayed.delete(id + field);
+    }
+  }
+  if (sel && !ids.has(sel)) sel = null;
+  const now = Date.now();
+  for (const m of members) {
+    const previous = lastServed.get(m.id);
+    if (previous !== undefined && m.info.served > previous) {
+      for (let i = previous; i < m.info.served; i++) completions.push(now);
+    }
+    lastServed.set(m.id, m.info.served);
+  }
   render();
+}
+
+async function watchRoster(n: MeshNode): Promise<void> {
+  const reader = n.rosterUpdates().getReader();
+  rows = n.roster() as Member[];
+  refresh();
+  for (;;) {
+    const { done } = await reader.read();
+    if (done) return;
+    rows = n.roster() as Member[];
+    refresh();
+  }
 }
 
 async function watchEvents(n: MeshNode): Promise<void> {
@@ -297,10 +360,10 @@ function move(d: number): void {
 }
 
 function openDialog(): void {
-  if (me) return togglePause();
+  if (me && typeof me.state === "string") return togglePause();
   if (!node || adapter === null || gpuProblem !== null) return;
   $("overlay").hidden = false;
-  $("dlgOk").focus();
+  $(me ? "dlgCancel" : "dlgOk").focus();
 }
 
 function closeDialog(): void {
@@ -316,16 +379,18 @@ function togglePause(): void {
 }
 
 async function contribute(): Promise<void> {
-  closeDialog();
   if (!node || adapter === null || gpuProblem !== null || me) return;
-  me = new Contributor(node, adapter, log);
+  $("dlgProgress").textContent = "Starting download…";
+  me = new Contributor(node, adapter, log, refresh);
   sel = node.endpointId();
   log(`downloading ${MODEL.id} (${MODEL.downloadGB} GB)`, "acc");
   render();
   try {
     await me.start();
+    closeDialog();
   } catch (err) {
     log(`the model did not load: ${String(err)}`, "bad");
+    $("dlgProgress").textContent = String(err);
     me = undefined;
   }
   render();
@@ -448,7 +513,8 @@ async function main(): Promise<void> {
   $("netStatus").className = "ok";
   $("youId").textContent = shortId(node.endpointId());
   log(`joined ${POOL_NAME} as ${shortId(node.endpointId())}`, "acc");
-  void watchEvents(node);
+  void watchEvents(node).catch((err) => log(`Event stream failed: ${String(err)}`, "bad"));
+  void watchRoster(node).catch((err) => log(`Roster stream failed: ${String(err)}`, "bad"));
   tick();
   setInterval(tick, 1000);
 }

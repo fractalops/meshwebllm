@@ -4,7 +4,7 @@
  */
 import { CreateWebWorkerMLCEngine, type MLCEngineInterface } from "@mlc-ai/web-llm";
 import type { Job, MeshNode } from "./wasm/meshwebllm_web.js";
-import { HEARTBEAT_S, MODEL } from "./config";
+import { MODEL } from "./config";
 import type { CompletionRequest, WorkerInfo, WorkerState } from "./types";
 
 export type Log = (msg: string, cls?: string) => void;
@@ -15,55 +15,59 @@ export class Contributor {
   active = 0;
   served = 0;
   tokensOut = 0;
-  /** Moving average of this tab's own generation speed. */
+  /** Runtime-reported decoding speed while a job is running. */
   tokensPerSec = 0;
-  /** Tokens per second, one sample per second, for the sparkline. */
-  readonly history: number[] = [];
 
   private engine?: MLCEngineInterface;
   private paused = false;
-  private tokensThisSecond = 0;
+  progressText = "";
+  private sampling = false;
 
   constructor(
     private readonly node: MeshNode,
     readonly adapter: string,
     private readonly log: Log,
+    private readonly changed: () => void,
   ) {}
 
   async start(): Promise<void> {
     this.announce();
-    const timer = setInterval(() => this.announce(), HEARTBEAT_S * 1000);
-    const sampler = setInterval(() => {
-      this.history.push(this.tokensThisSecond);
-      if (this.history.length > 60) this.history.shift();
-      this.tokensThisSecond = 0;
-    }, 1000);
+    const sampler = setInterval(() => void this.sample(), 500);
     try {
-      this.engine = await CreateWebWorkerMLCEngine(
-        new Worker(new URL("./llm-worker.ts", import.meta.url), { type: "module" }),
-        MODEL.id,
-        {
-          initProgressCallback: (p) => {
-            const percent = Math.floor(p.progress * 100);
-            const prev = this.state;
-            this.state = { loading: { percent } };
-            if (typeof prev !== "string" && Math.floor(prev.loading.percent / 10) !== Math.floor(percent / 10)) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const worker = new Worker(new URL("./llm-worker.ts", import.meta.url), { type: "module" });
+        try {
+          this.progressText = `Loading model. Attempt ${attempt} of 3.`;
+          this.changed();
+          this.engine = await CreateWebWorkerMLCEngine(worker, MODEL.id, {
+            initProgressCallback: (p) => {
+              const percent = Math.max(0, Math.min(100, Math.floor(p.progress * 100)));
+              this.state = { loading: { percent } };
+              this.progressText = `Attempt ${attempt} of 3 · ${percent}% · ${p.text}`;
               this.announce();
-            }
-          },
-        },
-      );
+            },
+          });
+          break;
+        } catch (err) {
+          worker.terminate();
+          if (attempt === 3) throw new Error(`Model load failed after 3 attempts. ${String(err)}`);
+          const delay = 2 ** attempt;
+          this.progressText = `Download failed. Retrying in ${delay} seconds. Attempt ${attempt + 1} of 3.`;
+          this.log(this.progressText, "busy");
+          this.changed();
+          await new Promise((resolve) => setTimeout(resolve, delay * 1000));
+        }
+      }
     } catch (err) {
-      clearInterval(timer);
       clearInterval(sampler);
-      await this.node.leave();
+      await this.node.leave().catch(() => {});
       throw err;
     }
     this.state = "idle";
     this.node.setPaused(false);
     this.announce();
     this.log("model loaded, this tab now accepts jobs", "ok");
-    void this.loop();
+    void this.loop().finally(() => clearInterval(sampler));
   }
 
   setPaused(paused: boolean): void {
@@ -97,8 +101,26 @@ export class Contributor {
   private announce(): void {
     try {
       this.node.announce(this.info());
+      this.changed();
     } catch (err) {
       console.warn("announce failed", err);
+    }
+  }
+
+  private async sample(): Promise<void> {
+    if (this.sampling) return;
+    this.sampling = true;
+    try {
+      if (this.active && this.engine) {
+        const stats = await this.engine.runtimeStatsText();
+        const rate = Number(/decoding: ([\d.]+) tokens\/sec/.exec(stats)?.[1]);
+        if (this.active && Number.isFinite(rate)) this.tokensPerSec = rate;
+      }
+      this.announce();
+    } catch (err) {
+      console.warn("worker status failed", err);
+    } finally {
+      this.sampling = false;
     }
   }
 
@@ -119,6 +141,7 @@ export class Contributor {
     const req = (await job.request()) as CompletionRequest;
     this.active = 1;
     this.state = "busy";
+    this.tokensPerSec = 0;
     this.announce();
     const started = performance.now();
     let completion = 0;
@@ -138,7 +161,7 @@ export class Contributor {
         const text = chunk.choices[0]?.delta?.content;
         if (text) {
           await job.chunk(text);
-          this.tokensThisSecond += 1;
+
         }
         if (chunk.usage) {
           prompt = chunk.usage.prompt_tokens;
@@ -157,8 +180,7 @@ export class Contributor {
     } finally {
       const secs = (performance.now() - started) / 1000;
       if (completion > 0 && secs > 0) {
-        const rate = completion / secs;
-        this.tokensPerSec = this.tokensPerSec ? 0.7 * this.tokensPerSec + 0.3 * rate : rate;
+        this.tokensPerSec = completion / secs;
       }
       this.tokensOut += completion;
       this.active = 0;
@@ -198,6 +220,9 @@ export async function checkGpu(): Promise<GpuCheck | null> {
   for (const [limit, required] of REQUIRED_LIMITS) {
     const actual = adapter.limits[limit] as number;
     if (actual < required) {
+      if (limit === "maxStorageBuffersPerShaderStage" && actual === 9 && info?.vendor.toLowerCase().includes("apple")) {
+        return { name, problem: "Firefox limits this on Apple silicon Macs. Use Chrome or Edge." };
+      }
       return { name, problem: `this browser allows ${limit}=${actual}, WebLLM needs ${required}` };
     }
   }

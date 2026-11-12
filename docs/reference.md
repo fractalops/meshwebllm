@@ -84,6 +84,8 @@ Workers with different models are in the same pool. The `ask` command does not c
 - To contribute, the browser must support WebGPU and allow at least 10 storage buffers per shader stage. WebLLM needs this for every model. The page checks the GPU on load and disables **Contribute my GPU** with the reason when the browser does not meet it. Chrome and Edge on a recent GPU usually do.
 - The tab keeps its secret key in `localStorage`, so its endpoint ID stays the same across visits.
 - The model runs in a Web Worker. The browser caches the model files after the first download.
+- Model loading tries up to 3 times. Retries wait 2 seconds, then 4 seconds. Cached files are kept. The row and dialog show download progress. The dialog includes the size when WebLLM reports it.
+- Firefox on Apple silicon can report only 9 storage buffers per shader stage. Use Chrome or Edge on these Macs.
 - The tab runs one completion at a time. Two more requests can wait. Further requests get a `Busy` error.
 - When you pause, the running completion stops and its client gets a `Paused` error.
 - Browsers can freeze hidden tabs. Keep the worker tab visible.
@@ -100,13 +102,16 @@ Each worker reports its own status, counters and speed. Other members cannot che
 | Jobs | Running jobs, then waiting jobs after `+`. |
 | Served | Completed requests since the tab started. |
 | Tokens | Generated tokens since the tab started. |
-| tok/s | Moving average of the worker's generation speed. |
+| tok/s | Reported decoding speed during generation. After a job, its completion tokens divided by elapsed time. |
 | Beat | Seconds since the latest announcement. |
 
 ## Pool membership
 
 - Members join a gossip topic derived from the pool name.
-- A worker sends a signed status announcement every 10 seconds and at once when its state changes.
+- An idle worker sends a signed heartbeat every 10 seconds. Status changes wake the sender. Worker announcements are limited to one every 2 seconds, including replies to new members. Each message is at most 2 KB.
+- The worker samples speed and queue depth every 500 ms. The page reads the roster when the Wasm node signals a change.
+- Counters animate for 400 ms between received values. They stop at the latest reported value. Reduced-motion settings disable the animation.
+- Replayed and reordered status and leave messages are ignored. Sequence floors remain after a worker leaves or expires.
 - Members check each signature against the sender's endpoint ID and drop messages that fail.
 - A worker that sends nothing for 30 seconds is shown as stale. After 45 seconds it is removed.
 - A worker that leaves on purpose sends a leave message and is removed at once.
