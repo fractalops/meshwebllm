@@ -65,9 +65,12 @@ Browser verification on an Apple Metal GPU, 2026-11-13:
 - The optimized production bundle downloaded the original model from its pinned upstream URL, connected to the public pool and generated the same answer over the normal iroh completion path.
 - The WebLLM 360M adapter downloaded its weights without Cache.add(), generated the Paris answer, and passed stop/restart plus pause/resume during live generation. Pending worker calls are cancelled explicitly when their worker is terminated.
 - The chat view was visually checked at a 390 × 844 mobile viewport.
+- Safari on this Mac reproduced zero connected peers with dotted relay hostnames. With browser-boundary URL normalization, the production bundle discovered the existing Chrome team and received the Paris answer over public relays (7 tokens, 11.5 seconds). Actual iOS device verification remains separate.
 
 The original numerical comparisons, GPU-dispatch evidence and token sequences remain in [the experiment results](../experiments/layer-split/README.md).
 
 ## Dependency maintenance
+
+Safari/WebKit could not connect to the default relay URLs ending in a DNS root dot (`iroh.link.`), leaving discovery at zero peers. `web/build/browser-network.mjs` scopes URL normalization to the generated iroh module's `WebSocket` and `Request` constructors. This covers relay addresses received from other peers as well as local defaults and HTTPS latency probes. Browser globals, signed addresses, endpoint identities, TLS verification and native clients are unchanged. Vite applies the same transform in development and production builds; the build fails if the expected generated constructors disappear. Revisit this workaround when upgrading iroh or wasm-bindgen.
 
 The pinned iroh-blobs/bao-tree stack depends on genawaiter, whose build-time diagnostic macro depends on unmaintained `proc-macro-error`. `deny.toml` records a narrow exception for [RUSTSEC-2024-0370](https://rustsec.org/advisories/RUSTSEC-2024-0370.html): an unmaintained-package advisory with no patched version. Replace the exception when the upstream dependency chain changes. Other advisory, license and source checks remain enabled.

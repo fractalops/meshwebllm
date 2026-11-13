@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import { createReadStream, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { browserNetworkPlugin } from "./build/browser-network.mjs";
 
 export default defineConfig({
   base: "./",
@@ -15,6 +16,7 @@ export default defineConfig({
     strictPort: true,
   },
   plugins: [
+    browserNetworkPlugin(),
     {
       name: "local-model-fixture",
       configureServer(server) {
