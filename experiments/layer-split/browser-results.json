@@ -1,0 +1,1135 @@
+{
+  "version": 1,
+  "verifiedAt": "2026-11-13T09:19:16.116Z",
+  "passed": true,
+  "experiment": "Browser-prepared SmolLM2 stages and iroh-blobs weight distribution",
+  "environment": {
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+    "relay": [
+      {
+        "Relay": "http://127.0.0.1:3340/"
+      }
+    ],
+    "devices": 1,
+    "browserTabs": 3
+  },
+  "manifest": {
+    "hash": "0fcf98859ac3d36a96555cde875d89e4b68f885a3c91ccb4d955dc6b3984d24f",
+    "bytes": 95375,
+    "graphBytes": 199214,
+    "tensors": 486,
+    "source": {
+      "url": "/artifacts/source/onnx/model_q4.onnx",
+      "repo": "HuggingFaceTB/SmolLM2-135M-Instruct",
+      "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+      "sha256": "933577110303a2964096d19b6f15d3b4639bef7f99481ac0b61d9f3ad72f392a"
+    }
+  },
+  "stages": {
+    "first": {
+      "layers": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "modelBytes": 148705171,
+      "modelSha256": "14e69555b67dc87d25c45ed813216be9c6ae039553f4b15ad7cbf882b26338ea",
+      "selectedWeightBytes": 148604310,
+      "totalWeightBytes": 181867580,
+      "uniqueBlobs": 357,
+      "cold": {
+        "networkRequests": 357,
+        "networkBytes": 148898899,
+        "cacheHits": 2,
+        "corruptEntries": 0
+      },
+      "corruption": {
+        "rejected": true,
+        "refetched": true
+      },
+      "coldSetupMs": 114755.80000001192,
+      "reloadSetupMs": 5645.800000011921,
+      "reload": {
+        "networkRequests": 0,
+        "networkBytes": 0,
+        "cacheHits": 359,
+        "corruptEntries": 0
+      },
+      "sourceHttpRequests": 0,
+      "offline": {
+        "verifiedBlobs": 357,
+        "networkRequests": 0
+      },
+      "adapter": {
+        "vendor": "apple",
+        "architecture": "metal-3",
+        "description": ""
+      }
+    },
+    "second": {
+      "layers": [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ],
+      "modelBytes": 148709508,
+      "modelSha256": "5943172c59f5ee136fbe58866ad59aca51c8593bdadf66542127acd8d009677d",
+      "selectedWeightBytes": 148606830,
+      "totalWeightBytes": 181867580,
+      "uniqueBlobs": 358,
+      "cold": {
+        "networkRequests": 358,
+        "networkBytes": 148901419,
+        "cacheHits": 2,
+        "corruptEntries": 0
+      },
+      "corruption": {
+        "rejected": true,
+        "refetched": true
+      },
+      "coldSetupMs": 106788.80000001192,
+      "reloadSetupMs": 5782.300000011921,
+      "reload": {
+        "networkRequests": 0,
+        "networkBytes": 0,
+        "cacheHits": 360,
+        "corruptEntries": 0
+      },
+      "sourceHttpRequests": 0,
+      "offline": {
+        "verifiedBlobs": 358,
+        "networkRequests": 0
+      },
+      "adapter": {
+        "vendor": "apple",
+        "architecture": "metal-3",
+        "description": ""
+      }
+    }
+  },
+  "coldInference": {
+    "exactComparisons": 24,
+    "decodeMedianMs": 55.5,
+    "tests": [
+      {
+        "name": "short",
+        "steps": [
+          {
+            "step": 0,
+            "inputTokens": 16,
+            "exact": true,
+            "baselineToken": 504,
+            "splitToken": 504,
+            "activationBytes": 73728,
+            "splitMs": 261.10000002384186,
+            "gpuDispatches": [
+              603,
+              301,
+              302
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "7e0cf7745288b799e642c6c0e7f162992f5f501eb988773a9c6337ebec4b60cc",
+            "splitHash": "7e0cf7745288b799e642c6c0e7f162992f5f501eb988773a9c6337ebec4b60cc"
+          },
+          {
+            "step": 1,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 3575,
+            "splitToken": 3575,
+            "activationBytes": 4608,
+            "splitMs": 59.5,
+            "gpuDispatches": [
+              1206,
+              602,
+              604
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "cf9cd8d9b65108b92476ce957fa58ceffe5bb3f734e6355ded88b5e574e674d3",
+            "splitHash": "cf9cd8d9b65108b92476ce957fa58ceffe5bb3f734e6355ded88b5e574e674d3"
+          },
+          {
+            "step": 2,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 282,
+            "splitToken": 282,
+            "activationBytes": 4608,
+            "splitMs": 54.89999997615814,
+            "gpuDispatches": [
+              1809,
+              903,
+              906
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "dc4af6c71387109900ad362821e11ccf25bf166f5be5ffc8e8c3cfb44f9bcaa0",
+            "splitHash": "dc4af6c71387109900ad362821e11ccf25bf166f5be5ffc8e8c3cfb44f9bcaa0"
+          },
+          {
+            "step": 3,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 4649,
+            "splitToken": 4649,
+            "activationBytes": 4608,
+            "splitMs": 52.80000001192093,
+            "gpuDispatches": [
+              2412,
+              1204,
+              1208
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "53584d4fb56e22ce7a6bd999dfa1ed0a8b70f79d028004ca734c8c383a64276d",
+            "splitHash": "53584d4fb56e22ce7a6bd999dfa1ed0a8b70f79d028004ca734c8c383a64276d"
+          },
+          {
+            "step": 4,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 314,
+            "splitToken": 314,
+            "activationBytes": 4608,
+            "splitMs": 55.19999998807907,
+            "gpuDispatches": [
+              3015,
+              1505,
+              1510
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "3c5492ff7d7ad7dbb5313c53c2c35940a59c4ac94a478add05b67e73e333087d",
+            "splitHash": "3c5492ff7d7ad7dbb5313c53c2c35940a59c4ac94a478add05b67e73e333087d"
+          },
+          {
+            "step": 5,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 7042,
+            "splitToken": 7042,
+            "activationBytes": 4608,
+            "splitMs": 55,
+            "gpuDispatches": [
+              3618,
+              1806,
+              1812
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "d1973455466e6cf0fd6864bef5c3241dc372de49c88d16df31bf5fdcc4ab67da",
+            "splitHash": "d1973455466e6cf0fd6864bef5c3241dc372de49c88d16df31bf5fdcc4ab67da"
+          },
+          {
+            "step": 6,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 30,
+            "splitToken": 30,
+            "activationBytes": 4608,
+            "splitMs": 56.09999996423721,
+            "gpuDispatches": [
+              4221,
+              2107,
+              2114
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "ad75202dfd355ea8d2928769d853480d7b83751ae1d5679c715062e7c0696620",
+            "splitHash": "ad75202dfd355ea8d2928769d853480d7b83751ae1d5679c715062e7c0696620"
+          },
+          {
+            "step": 7,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 2,
+            "splitToken": 2,
+            "activationBytes": 4608,
+            "splitMs": 56.09999996423721,
+            "gpuDispatches": [
+              4824,
+              2408,
+              2416
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "d38dae14f91faafcd15445b8664e14214d76d769cd6140f194d92528da80b531",
+            "splitHash": "d38dae14f91faafcd15445b8664e14214d76d769cd6140f194d92528da80b531"
+          },
+          {
+            "step": 8,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 198,
+            "splitToken": 198,
+            "activationBytes": 4608,
+            "splitMs": 56.09999996423721,
+            "gpuDispatches": [
+              5427,
+              2709,
+              2718
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "1713292e7299121f5769c66b2594a931a816adb4307c5ed6fff6c4b251aa13a3",
+            "splitHash": "1713292e7299121f5769c66b2594a931a816adb4307c5ed6fff6c4b251aa13a3"
+          },
+          {
+            "step": 9,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 2,
+            "splitToken": 2,
+            "activationBytes": 4608,
+            "splitMs": 54.80000001192093,
+            "gpuDispatches": [
+              6030,
+              3010,
+              3020
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "16ae6fcfca6e23bb84d91ae5effe5f28b13ead9ca61894433bc1509fecba5623",
+            "splitHash": "16ae6fcfca6e23bb84d91ae5effe5f28b13ead9ca61894433bc1509fecba5623"
+          },
+          {
+            "step": 10,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 1,
+            "splitToken": 1,
+            "activationBytes": 4608,
+            "splitMs": 55.80000001192093,
+            "gpuDispatches": [
+              6633,
+              3311,
+              3322
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "50d9563b7c35527681716be188b2549428e1dc368dd4056aa6f4dbb3c02299c0",
+            "splitHash": "50d9563b7c35527681716be188b2549428e1dc368dd4056aa6f4dbb3c02299c0"
+          },
+          {
+            "step": 11,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 9690,
+            "splitToken": 9690,
+            "activationBytes": 4608,
+            "splitMs": 56.39999997615814,
+            "gpuDispatches": [
+              7236,
+              3612,
+              3624
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "77b7b92405b11a5c4386c70a29d5de244cc4c59ba3806beecd1f1f91ea366948",
+            "splitHash": "77b7b92405b11a5c4386c70a29d5de244cc4c59ba3806beecd1f1f91ea366948"
+          }
+        ]
+      },
+      {
+        "name": "longer",
+        "steps": [
+          {
+            "step": 0,
+            "inputTokens": 24,
+            "exact": true,
+            "baselineToken": 504,
+            "splitToken": 504,
+            "activationBytes": 110592,
+            "splitMs": 157.5999999642372,
+            "gpuDispatches": [
+              7839,
+              3913,
+              3926
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "7e00eaa84f2fa2006ccbcfc8eb0aa96ae32f475f4fcd7a12d2645f8400ee68ed",
+            "splitHash": "7e00eaa84f2fa2006ccbcfc8eb0aa96ae32f475f4fcd7a12d2645f8400ee68ed"
+          },
+          {
+            "step": 1,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 6376,
+            "splitToken": 6376,
+            "activationBytes": 4608,
+            "splitMs": 58.09999996423721,
+            "gpuDispatches": [
+              8442,
+              4214,
+              4228
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "bf42962e06aefec19f641662ec1df62b9ce7d4ade8084035474e2357f4f7ad01",
+            "splitHash": "bf42962e06aefec19f641662ec1df62b9ce7d4ade8084035474e2357f4f7ad01"
+          },
+          {
+            "step": 2,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 5117,
+            "splitToken": 5117,
+            "activationBytes": 4608,
+            "splitMs": 54.10000002384186,
+            "gpuDispatches": [
+              9045,
+              4515,
+              4530
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "3c7ccc83de2ce5474f84190bdd7ea408f4cc6ec7d2b0456a33563781b9dec065",
+            "splitHash": "3c7ccc83de2ce5474f84190bdd7ea408f4cc6ec7d2b0456a33563781b9dec065"
+          },
+          {
+            "step": 3,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 4461,
+            "splitToken": 4461,
+            "activationBytes": 4608,
+            "splitMs": 59.69999998807907,
+            "gpuDispatches": [
+              9648,
+              4816,
+              4832
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "570685fbbbd984a05f1359a2bf80fda4aff3fcbefca0444d216f422c03afba15",
+            "splitHash": "570685fbbbd984a05f1359a2bf80fda4aff3fcbefca0444d216f422c03afba15"
+          },
+          {
+            "step": 4,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 335,
+            "splitToken": 335,
+            "activationBytes": 4608,
+            "splitMs": 57.80000001192093,
+            "gpuDispatches": [
+              10251,
+              5117,
+              5134
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "564eae050da1e358d9f043ef48457aab76eb8fa0b2cdd6fe521f908bb9768ace",
+            "splitHash": "564eae050da1e358d9f043ef48457aab76eb8fa0b2cdd6fe521f908bb9768ace"
+          },
+          {
+            "step": 5,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 253,
+            "splitToken": 253,
+            "activationBytes": 4608,
+            "splitMs": 58.59999996423721,
+            "gpuDispatches": [
+              10854,
+              5418,
+              5436
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "0755b7ec4cc6c86b3e64db77baee4459082364edfdaa24732b5ea16a063a82f7",
+            "splitHash": "0755b7ec4cc6c86b3e64db77baee4459082364edfdaa24732b5ea16a063a82f7"
+          },
+          {
+            "step": 6,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 2437,
+            "splitToken": 2437,
+            "activationBytes": 4608,
+            "splitMs": 58.700000047683716,
+            "gpuDispatches": [
+              11457,
+              5719,
+              5738
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "8102f47fe981946eca2befbfb4e987a3f8dcdf74b53ca08eacf224a8b45e1c46",
+            "splitHash": "8102f47fe981946eca2befbfb4e987a3f8dcdf74b53ca08eacf224a8b45e1c46"
+          },
+          {
+            "step": 7,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 1194,
+            "splitToken": 1194,
+            "activationBytes": 4608,
+            "splitMs": 50.60000002384186,
+            "gpuDispatches": [
+              12060,
+              6020,
+              6040
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "63b2763391ba4790a59722b69e307906650fae9d1c53682511a4d98f44f34c53",
+            "splitHash": "63b2763391ba4790a59722b69e307906650fae9d1c53682511a4d98f44f34c53"
+          },
+          {
+            "step": 8,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 975,
+            "splitToken": 975,
+            "activationBytes": 4608,
+            "splitMs": 50.30000001192093,
+            "gpuDispatches": [
+              12663,
+              6321,
+              6342
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "e8e0b1a817122c6a94e5efe53448c59b3b56c6bda6a09a720d2f9aded55e3852",
+            "splitHash": "e8e0b1a817122c6a94e5efe53448c59b3b56c6bda6a09a720d2f9aded55e3852"
+          },
+          {
+            "step": 9,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 260,
+            "splitToken": 260,
+            "activationBytes": 4608,
+            "splitMs": 49.80000001192093,
+            "gpuDispatches": [
+              13266,
+              6622,
+              6644
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "fb32ba7cf7d955ded541824b4f818097f12f5ce3ea13b31dcc5930c31020b7f6",
+            "splitHash": "fb32ba7cf7d955ded541824b4f818097f12f5ce3ea13b31dcc5930c31020b7f6"
+          },
+          {
+            "step": 10,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 1902,
+            "splitToken": 1902,
+            "activationBytes": 4608,
+            "splitMs": 50.90000003576279,
+            "gpuDispatches": [
+              13869,
+              6923,
+              6946
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "20e327997e9f8c703fbd0d3d9ee8b28a30908ba535173f4173970ccd992cf073",
+            "splitHash": "20e327997e9f8c703fbd0d3d9ee8b28a30908ba535173f4173970ccd992cf073"
+          },
+          {
+            "step": 11,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 282,
+            "splitToken": 282,
+            "activationBytes": 4608,
+            "splitMs": 52,
+            "gpuDispatches": [
+              14472,
+              7224,
+              7248
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "478b6e0a46167db67f8aba3bc682c43bce3177249c7b6fad132671b3b2cc92bc",
+            "splitHash": "478b6e0a46167db67f8aba3bc682c43bce3177249c7b6fad132671b3b2cc92bc"
+          }
+        ]
+      }
+    ]
+  },
+  "cachedInference": {
+    "exactComparisons": 24,
+    "decodeMedianMs": 53.25000002980232,
+    "tests": [
+      {
+        "name": "short",
+        "steps": [
+          {
+            "step": 0,
+            "inputTokens": 16,
+            "exact": true,
+            "baselineToken": 504,
+            "splitToken": 504,
+            "activationBytes": 73728,
+            "splitMs": 267.10000002384186,
+            "gpuDispatches": [
+              603,
+              301,
+              302
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "7e0cf7745288b799e642c6c0e7f162992f5f501eb988773a9c6337ebec4b60cc",
+            "splitHash": "7e0cf7745288b799e642c6c0e7f162992f5f501eb988773a9c6337ebec4b60cc"
+          },
+          {
+            "step": 1,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 3575,
+            "splitToken": 3575,
+            "activationBytes": 4608,
+            "splitMs": 55.89999997615814,
+            "gpuDispatches": [
+              1206,
+              602,
+              604
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "cf9cd8d9b65108b92476ce957fa58ceffe5bb3f734e6355ded88b5e574e674d3",
+            "splitHash": "cf9cd8d9b65108b92476ce957fa58ceffe5bb3f734e6355ded88b5e574e674d3"
+          },
+          {
+            "step": 2,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 282,
+            "splitToken": 282,
+            "activationBytes": 4608,
+            "splitMs": 51.5,
+            "gpuDispatches": [
+              1809,
+              903,
+              906
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "dc4af6c71387109900ad362821e11ccf25bf166f5be5ffc8e8c3cfb44f9bcaa0",
+            "splitHash": "dc4af6c71387109900ad362821e11ccf25bf166f5be5ffc8e8c3cfb44f9bcaa0"
+          },
+          {
+            "step": 3,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 4649,
+            "splitToken": 4649,
+            "activationBytes": 4608,
+            "splitMs": 50.80000001192093,
+            "gpuDispatches": [
+              2412,
+              1204,
+              1208
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "53584d4fb56e22ce7a6bd999dfa1ed0a8b70f79d028004ca734c8c383a64276d",
+            "splitHash": "53584d4fb56e22ce7a6bd999dfa1ed0a8b70f79d028004ca734c8c383a64276d"
+          },
+          {
+            "step": 4,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 314,
+            "splitToken": 314,
+            "activationBytes": 4608,
+            "splitMs": 53.200000047683716,
+            "gpuDispatches": [
+              3015,
+              1505,
+              1510
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "3c5492ff7d7ad7dbb5313c53c2c35940a59c4ac94a478add05b67e73e333087d",
+            "splitHash": "3c5492ff7d7ad7dbb5313c53c2c35940a59c4ac94a478add05b67e73e333087d"
+          },
+          {
+            "step": 5,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 7042,
+            "splitToken": 7042,
+            "activationBytes": 4608,
+            "splitMs": 55.09999996423721,
+            "gpuDispatches": [
+              3618,
+              1806,
+              1812
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "d1973455466e6cf0fd6864bef5c3241dc372de49c88d16df31bf5fdcc4ab67da",
+            "splitHash": "d1973455466e6cf0fd6864bef5c3241dc372de49c88d16df31bf5fdcc4ab67da"
+          },
+          {
+            "step": 6,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 30,
+            "splitToken": 30,
+            "activationBytes": 4608,
+            "splitMs": 54.69999998807907,
+            "gpuDispatches": [
+              4221,
+              2107,
+              2114
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "ad75202dfd355ea8d2928769d853480d7b83751ae1d5679c715062e7c0696620",
+            "splitHash": "ad75202dfd355ea8d2928769d853480d7b83751ae1d5679c715062e7c0696620"
+          },
+          {
+            "step": 7,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 2,
+            "splitToken": 2,
+            "activationBytes": 4608,
+            "splitMs": 56.5,
+            "gpuDispatches": [
+              4824,
+              2408,
+              2416
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "d38dae14f91faafcd15445b8664e14214d76d769cd6140f194d92528da80b531",
+            "splitHash": "d38dae14f91faafcd15445b8664e14214d76d769cd6140f194d92528da80b531"
+          },
+          {
+            "step": 8,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 198,
+            "splitToken": 198,
+            "activationBytes": 4608,
+            "splitMs": 52.39999997615814,
+            "gpuDispatches": [
+              5427,
+              2709,
+              2718
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "1713292e7299121f5769c66b2594a931a816adb4307c5ed6fff6c4b251aa13a3",
+            "splitHash": "1713292e7299121f5769c66b2594a931a816adb4307c5ed6fff6c4b251aa13a3"
+          },
+          {
+            "step": 9,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 2,
+            "splitToken": 2,
+            "activationBytes": 4608,
+            "splitMs": 56.10000002384186,
+            "gpuDispatches": [
+              6030,
+              3010,
+              3020
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "16ae6fcfca6e23bb84d91ae5effe5f28b13ead9ca61894433bc1509fecba5623",
+            "splitHash": "16ae6fcfca6e23bb84d91ae5effe5f28b13ead9ca61894433bc1509fecba5623"
+          },
+          {
+            "step": 10,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 1,
+            "splitToken": 1,
+            "activationBytes": 4608,
+            "splitMs": 51.19999998807907,
+            "gpuDispatches": [
+              6633,
+              3311,
+              3322
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "50d9563b7c35527681716be188b2549428e1dc368dd4056aa6f4dbb3c02299c0",
+            "splitHash": "50d9563b7c35527681716be188b2549428e1dc368dd4056aa6f4dbb3c02299c0"
+          },
+          {
+            "step": 11,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 9690,
+            "splitToken": 9690,
+            "activationBytes": 4608,
+            "splitMs": 53.19999998807907,
+            "gpuDispatches": [
+              7236,
+              3612,
+              3624
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "77b7b92405b11a5c4386c70a29d5de244cc4c59ba3806beecd1f1f91ea366948",
+            "splitHash": "77b7b92405b11a5c4386c70a29d5de244cc4c59ba3806beecd1f1f91ea366948"
+          }
+        ]
+      },
+      {
+        "name": "longer",
+        "steps": [
+          {
+            "step": 0,
+            "inputTokens": 24,
+            "exact": true,
+            "baselineToken": 504,
+            "splitToken": 504,
+            "activationBytes": 110592,
+            "splitMs": 174.69999998807907,
+            "gpuDispatches": [
+              7839,
+              3913,
+              3926
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "7e00eaa84f2fa2006ccbcfc8eb0aa96ae32f475f4fcd7a12d2645f8400ee68ed",
+            "splitHash": "7e00eaa84f2fa2006ccbcfc8eb0aa96ae32f475f4fcd7a12d2645f8400ee68ed"
+          },
+          {
+            "step": 1,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 6376,
+            "splitToken": 6376,
+            "activationBytes": 4608,
+            "splitMs": 51.80000001192093,
+            "gpuDispatches": [
+              8442,
+              4214,
+              4228
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "bf42962e06aefec19f641662ec1df62b9ce7d4ade8084035474e2357f4f7ad01",
+            "splitHash": "bf42962e06aefec19f641662ec1df62b9ce7d4ade8084035474e2357f4f7ad01"
+          },
+          {
+            "step": 2,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 5117,
+            "splitToken": 5117,
+            "activationBytes": 4608,
+            "splitMs": 53.60000002384186,
+            "gpuDispatches": [
+              9045,
+              4515,
+              4530
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "3c7ccc83de2ce5474f84190bdd7ea408f4cc6ec7d2b0456a33563781b9dec065",
+            "splitHash": "3c7ccc83de2ce5474f84190bdd7ea408f4cc6ec7d2b0456a33563781b9dec065"
+          },
+          {
+            "step": 3,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 4461,
+            "splitToken": 4461,
+            "activationBytes": 4608,
+            "splitMs": 54.60000002384186,
+            "gpuDispatches": [
+              9648,
+              4816,
+              4832
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "570685fbbbd984a05f1359a2bf80fda4aff3fcbefca0444d216f422c03afba15",
+            "splitHash": "570685fbbbd984a05f1359a2bf80fda4aff3fcbefca0444d216f422c03afba15"
+          },
+          {
+            "step": 4,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 335,
+            "splitToken": 335,
+            "activationBytes": 4608,
+            "splitMs": 58.19999998807907,
+            "gpuDispatches": [
+              10251,
+              5117,
+              5134
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "564eae050da1e358d9f043ef48457aab76eb8fa0b2cdd6fe521f908bb9768ace",
+            "splitHash": "564eae050da1e358d9f043ef48457aab76eb8fa0b2cdd6fe521f908bb9768ace"
+          },
+          {
+            "step": 5,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 253,
+            "splitToken": 253,
+            "activationBytes": 4608,
+            "splitMs": 59.40000003576279,
+            "gpuDispatches": [
+              10854,
+              5418,
+              5436
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "0755b7ec4cc6c86b3e64db77baee4459082364edfdaa24732b5ea16a063a82f7",
+            "splitHash": "0755b7ec4cc6c86b3e64db77baee4459082364edfdaa24732b5ea16a063a82f7"
+          },
+          {
+            "step": 6,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 2437,
+            "splitToken": 2437,
+            "activationBytes": 4608,
+            "splitMs": 53.30000001192093,
+            "gpuDispatches": [
+              11457,
+              5719,
+              5738
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "8102f47fe981946eca2befbfb4e987a3f8dcdf74b53ca08eacf224a8b45e1c46",
+            "splitHash": "8102f47fe981946eca2befbfb4e987a3f8dcdf74b53ca08eacf224a8b45e1c46"
+          },
+          {
+            "step": 7,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 1194,
+            "splitToken": 1194,
+            "activationBytes": 4608,
+            "splitMs": 53,
+            "gpuDispatches": [
+              12060,
+              6020,
+              6040
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "63b2763391ba4790a59722b69e307906650fae9d1c53682511a4d98f44f34c53",
+            "splitHash": "63b2763391ba4790a59722b69e307906650fae9d1c53682511a4d98f44f34c53"
+          },
+          {
+            "step": 8,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 975,
+            "splitToken": 975,
+            "activationBytes": 4608,
+            "splitMs": 49.19999998807907,
+            "gpuDispatches": [
+              12663,
+              6321,
+              6342
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "e8e0b1a817122c6a94e5efe53448c59b3b56c6bda6a09a720d2f9aded55e3852",
+            "splitHash": "e8e0b1a817122c6a94e5efe53448c59b3b56c6bda6a09a720d2f9aded55e3852"
+          },
+          {
+            "step": 9,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 260,
+            "splitToken": 260,
+            "activationBytes": 4608,
+            "splitMs": 49.39999997615814,
+            "gpuDispatches": [
+              13266,
+              6622,
+              6644
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "fb32ba7cf7d955ded541824b4f818097f12f5ce3ea13b31dcc5930c31020b7f6",
+            "splitHash": "fb32ba7cf7d955ded541824b4f818097f12f5ce3ea13b31dcc5930c31020b7f6"
+          },
+          {
+            "step": 10,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 1902,
+            "splitToken": 1902,
+            "activationBytes": 4608,
+            "splitMs": 50.39999997615814,
+            "gpuDispatches": [
+              13869,
+              6923,
+              6946
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "20e327997e9f8c703fbd0d3d9ee8b28a30908ba535173f4173970ccd992cf073",
+            "splitHash": "20e327997e9f8c703fbd0d3d9ee8b28a30908ba535173f4173970ccd992cf073"
+          },
+          {
+            "step": 11,
+            "inputTokens": 1,
+            "exact": true,
+            "baselineToken": 282,
+            "splitToken": 282,
+            "activationBytes": 4608,
+            "splitMs": 55.89999997615814,
+            "gpuDispatches": [
+              14472,
+              7224,
+              7248
+            ],
+            "cacheTensors": [
+              30,
+              30
+            ],
+            "baselineHash": "478b6e0a46167db67f8aba3bc682c43bce3177249c7b6fad132671b3b2cc92bc",
+            "splitHash": "478b6e0a46167db67f8aba3bc682c43bce3177249c7b6fad132671b3b2cc92bc"
+          }
+        ]
+      }
+    ]
+  },
+  "limits": [
+    "One Mac and one physical GPU; this does not prove multi-device memory pooling or speedup.",
+    "Complete distribution used a loopback iroh relay. Public-relay bulk transfer remains unproven.",
+    "Seed parses the full original model in browser memory; no streaming import.",
+    "Pinned model export only; GPU execution verified at the 15/15 layer split.",
+    "Each stage still needs the large shared embedding/output head; model bytes are not measured GPU memory.",
+    "One seed provider; no DHT, swarming, automatic placement or failover.",
+    "Offline test disables blob fetching, while control messages still use the relay."
+  ]
+}

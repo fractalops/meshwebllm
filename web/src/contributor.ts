@@ -1,205 +1,321 @@
-/**
- * Turns this tab into a worker: loads the model, takes jobs from the Wasm
- * node, streams WebLLM output back, and announces status to the pool.
- */
-import { CreateWebWorkerMLCEngine, type MLCEngineInterface } from "@mlc-ai/web-llm";
 import type { Job, MeshNode } from "./wasm/meshwebllm_web.js";
-import { HEARTBEAT_S, MODEL } from "./config";
-import type { CompletionRequest, WorkerInfo, WorkerState } from "./types";
+import type { ModelSpec } from "./config";
+import type { CompletionRequest, WorkerInfo } from "./types";
+import type { Runtime, RuntimeOptions, RuntimeProgress } from "./runtime/types";
+import { createOnnx } from "./runtime/onnx";
+import { createSplit, joinSplit, type Invitation } from "./runtime/split";
 
-export type Log = (msg: string, cls?: string) => void;
-
+/** One queue consumer survives contribution changes; model sessions never own the queue. */
 export class Contributor {
-  readonly startedAt = Date.now();
-  state: WorkerState = { loading: { percent: 0 } };
-  active = 0;
+  progress: RuntimeProgress = {
+    phase: "stopped",
+    message: "Your GPU is not contributing",
+  };
+  model?: ModelSpec;
+  mode: "whole" | "shared" | "helper" = "whole";
+  invite?: Invitation;
+  startedAt = 0;
   served = 0;
   tokensOut = 0;
-  /** Moving average of this tab's own generation speed. */
   tokensPerSec = 0;
-  /** Tokens per second, one sample per second, for the sparkline. */
-  readonly history: number[] = [];
-
-  private engine?: MLCEngineInterface;
+  private runtime?: Runtime;
+  private loading?: AbortController;
+  private generation?: AbortController;
+  private version = 0;
   private paused = false;
-  private tokensThisSecond = 0;
-
+  private sampler: ReturnType<typeof setInterval>;
   constructor(
-    private readonly node: MeshNode,
+    private node: MeshNode,
     readonly adapter: string,
-    private readonly log: Log,
-  ) {}
-
-  async start(): Promise<void> {
-    this.announce();
-    const timer = setInterval(() => this.announce(), HEARTBEAT_S * 1000);
-    const sampler = setInterval(() => {
-      this.history.push(this.tokensThisSecond);
-      if (this.history.length > 60) this.history.shift();
-      this.tokensThisSecond = 0;
-    }, 1000);
-    try {
-      this.engine = await CreateWebWorkerMLCEngine(
-        new Worker(new URL("./llm-worker.ts", import.meta.url), { type: "module" }),
-        MODEL.id,
-        {
-          initProgressCallback: (p) => {
-            const percent = Math.floor(p.progress * 100);
-            const prev = this.state;
-            this.state = { loading: { percent } };
-            if (typeof prev !== "string" && Math.floor(prev.loading.percent / 10) !== Math.floor(percent / 10)) {
-              this.announce();
-            }
-          },
-        },
-      );
-    } catch (err) {
-      clearInterval(timer);
-      clearInterval(sampler);
-      await this.node.leave();
-      throw err;
-    }
-    this.state = "idle";
-    this.node.setPaused(false);
-    this.announce();
-    this.log("model loaded, this tab now accepts jobs", "ok");
+    private changed: () => void,
+  ) {
+    this.sampler = setInterval(() => this.announce(), 1000);
     void this.loop();
   }
-
-  setPaused(paused: boolean): void {
-    if (typeof this.state !== "string") return;
-    this.paused = paused;
-    this.node.setPaused(paused);
-    if (paused) this.engine?.interruptGenerate();
-    this.state = paused ? "paused" : this.active ? "busy" : "idle";
-    this.announce();
-    this.log(paused ? "you paused this worker" : "you resumed this worker", paused ? "busy" : "ok");
+  get running() {
+    return this.progress.phase !== "stopped";
   }
-
-  get isPaused(): boolean {
+  get canPause() {
+    return (
+      !!this.runtime &&
+      this.mode !== "helper" &&
+      this.progress.phase !== "error"
+    );
+  }
+  get isPaused() {
     return this.paused;
   }
-
-  info(): WorkerInfo {
+  get busy() {
+    return !!this.generation;
+  }
+  info(): WorkerInfo | undefined {
+    if (!this.model || !this.running || this.mode === "helper") return;
+    const phase = this.progress.phase;
+    const state =
+      phase === "ready"
+        ? "idle"
+        : phase === "busy"
+          ? "busy"
+          : phase === "paused" || phase === "error"
+            ? "paused"
+            : {
+                loading: {
+                  percent: this.progress.total
+                    ? Math.min(
+                        99,
+                        Math.floor(
+                          ((this.progress.loaded ?? 0) / this.progress.total) *
+                            100,
+                        ),
+                      )
+                    : 0,
+                },
+              };
     return {
-      state: this.state,
-      model: MODEL.id,
-      adapter: this.adapter,
-      active: this.active,
+      model: this.model.id,
+      state,
+      adapter: `${this.adapter}${this.mode === "shared" ? " · 2 devices" : ""}`,
+      active: this.busy ? 1 : 0,
       waiting: this.node.waiting(),
       served: this.served,
       tokensOut: this.tokensOut,
-      tokensPerSec: Math.round(this.tokensPerSec * 10) / 10,
+      tokensPerSec: this.tokensPerSec,
       uptimeSecs: Math.floor((Date.now() - this.startedAt) / 1000),
     };
   }
-
-  private announce(): void {
+  private announce() {
+    const info = this.info();
+    if (info) this.node.announce(info);
+    this.changed();
+  }
+  private update(progress: RuntimeProgress) {
+    this.progress = progress;
+    this.announce();
+  }
+  async start(
+    model: ModelSpec,
+    mode: "whole" | "shared" | "helper",
+    invite?: Invitation,
+  ): Promise<void> {
+    if (this.running) throw new Error("Stop the current contribution first.");
+    const version = ++this.version;
+    this.model = model;
+    this.mode = mode;
+    this.startedAt = Date.now();
+    this.paused = false;
+    this.served = 0;
+    this.tokensOut = 0;
+    this.tokensPerSec = 0;
+    const loading = new AbortController();
+    this.loading = loading;
+    this.node.setPaused(true);
+    this.update({ phase: "preparing", message: "Getting ready" });
+    let unavailable = false;
+    const options: RuntimeOptions = {
+      signal: loading.signal,
+      progress: (p) => {
+        if (this.version === version && !unavailable) this.update(p);
+      },
+      unavailable: (reason) => {
+        if (this.version !== version || unavailable) return;
+        unavailable = true;
+        this.node.setPaused(true);
+        this.generation?.abort();
+        this.update({ phase: "error", message: reason });
+        this.loading?.abort();
+        const runtime = this.runtime;
+        this.runtime = undefined;
+        void runtime?.dispose().catch(() => {});
+      },
+    };
     try {
-      this.node.announce(this.info());
-    } catch (err) {
-      console.warn("announce failed", err);
+      const runtime =
+        mode === "helper"
+          ? await joinSplit(invite!, options)
+          : mode === "shared"
+            ? await createSplit(options, (i) => {
+                if (this.version !== version) return;
+                this.invite = i;
+                this.changed();
+              })
+            : model.runtime === "onnx"
+              ? await createOnnx(options)
+              : await (
+                  await import("./runtime/webllm")
+                ).createWebLlm(model.id, options);
+      if (this.version !== version || loading.signal.aborted) {
+        await runtime.dispose();
+        return;
+      }
+      this.runtime = runtime;
+      this.loading = undefined;
+      if (this.progress.phase === "error") {
+        await runtime.dispose();
+        this.runtime = undefined;
+        return;
+      }
+      this.node.setPaused(mode === "helper");
+      this.update({
+        phase: "ready",
+        message:
+          mode === "helper"
+            ? this.progress.message
+            : mode === "shared"
+              ? "Team ready · both devices connected"
+              : "Your GPU is ready to answer",
+      });
+    } catch (error) {
+      if (this.version === version && !loading.signal.aborted) {
+        this.loading = undefined;
+        this.update({
+          phase: "error",
+          message: error instanceof Error ? error.message : String(error),
+        });
+        await this.node.leave().catch(() => {});
+      }
     }
   }
-
-  private async loop(): Promise<void> {
+  async stop(): Promise<void> {
+    ++this.version;
+    this.node.setPaused(true);
+    this.loading?.abort();
+    this.loading = undefined;
+    this.generation?.abort();
+    const runtime = this.runtime;
+    this.runtime = undefined;
+    this.invite = undefined;
+    this.paused = false;
+    this.update({ phase: "stopped", message: "Your GPU is not contributing" });
+    await this.node.leave().catch(() => {});
+    await runtime?.dispose();
+  }
+  pause() {
+    if (!this.canPause) return;
+    this.paused = !this.paused;
+    this.node.setPaused(this.paused);
+    if (this.paused) this.generation?.abort();
+    this.update({
+      phase: this.paused ? "paused" : "ready",
+      message: this.paused
+        ? "Contribution paused"
+        : "Your GPU is ready to answer",
+    });
+  }
+  async dispose() {
+    clearInterval(this.sampler);
+    await this.stop();
+  }
+  private async loop() {
     for (;;) {
       const job = await this.node.nextJob();
       if (!job) return;
-      if (this.paused) {
-        await job.fail("Paused", "worker is paused").catch(() => {});
-        continue;
-      }
-      await this.run(job);
+      await this.serve(job);
     }
   }
-
-  private async run(job: Job): Promise<void> {
-    const engine = this.engine!;
-    const req = (await job.request()) as CompletionRequest;
-    this.active = 1;
-    this.state = "busy";
-    this.announce();
+  private async serve(job: Job) {
+    const runtime = this.runtime,
+      version = this.version;
+    if (
+      !runtime ||
+      this.paused ||
+      this.mode === "helper" ||
+      this.progress.phase === "error"
+    ) {
+      await job.fail("Paused", "This worker is not ready.").catch(() => {});
+      return;
+    }
+    const signal = new AbortController();
+    this.generation = signal;
     const started = performance.now();
-    let completion = 0;
-    let prompt = 0;
+    this.update({ phase: "busy", message: "Answering a request" });
     try {
-      const chunks = await engine.chat.completions.create({
-        messages: req.messages.map((m) => ({
-          role: m.role.toLowerCase() as "system" | "user" | "assistant",
-          content: m.content,
-        })),
-        max_tokens: req.max_tokens ?? undefined,
-        temperature: req.temperature ?? undefined,
-        stream: true,
-        stream_options: { include_usage: true },
-      });
-      for await (const chunk of chunks) {
-        const text = chunk.choices[0]?.delta?.content;
-        if (text) {
-          await job.chunk(text);
-          this.tokensThisSecond += 1;
-        }
-        if (chunk.usage) {
-          prompt = chunk.usage.prompt_tokens;
-          completion = chunk.usage.completion_tokens;
-        }
-      }
-      if (this.paused) {
-        await job.fail("Paused", "worker was paused during the job");
-      } else {
-        await job.done(MODEL.id, prompt, completion);
-        this.served += 1;
-      }
-    } catch (err) {
-      await job.fail("Inference", String(err)).catch(() => {});
-      this.log(`job failed: ${String(err)}`, "bad");
+      const request = (await job.request()) as CompletionRequest;
+      const result = await runtime.generate(
+        request,
+        signal.signal,
+        async (text) => {
+          signal.signal.throwIfAborted();
+          try {
+            await job.chunk(text);
+          } catch (error) {
+            signal.abort();
+            throw error;
+          }
+        },
+      );
+      signal.signal.throwIfAborted();
+      await job.done(
+        result.model,
+        result.prompt_tokens,
+        result.completion_tokens,
+      );
+      this.served++;
+      this.tokensOut += result.completion_tokens;
+      this.tokensPerSec =
+        result.completion_tokens / ((performance.now() - started) / 1000);
+    } catch (error) {
+      await job
+        .fail(
+          signal.signal.aborted ? "Paused" : "Inference",
+          signal.signal.aborted
+            ? "Generation stopped."
+            : error instanceof Error
+              ? error.message
+              : String(error),
+        )
+        .catch(() => {});
     } finally {
-      const secs = (performance.now() - started) / 1000;
-      if (completion > 0 && secs > 0) {
-        const rate = completion / secs;
-        this.tokensPerSec = this.tokensPerSec ? 0.7 * this.tokensPerSec + 0.3 * rate : rate;
-      }
-      this.tokensOut += completion;
-      this.active = 0;
-      this.state = this.paused ? "paused" : "idle";
-      this.announce();
+      if (this.generation === signal) this.generation = undefined;
+      if (
+        this.version === version &&
+        (this.progress.phase as string) !== "error"
+      )
+        this.update({
+          phase: this.paused ? "paused" : "ready",
+          message: this.paused
+            ? "Contribution paused"
+            : "Ready for the next request",
+        });
     }
   }
 }
-
-/** The GPU as the browser reports it, and whether WebLLM can run on it. */
 export interface GpuCheck {
-  /** Vendor and architecture, for example "apple · metal-3". */
   name: string;
-  /** Why WebLLM cannot run here, or null when it can. */
-  problem: string | null;
+  onnxProblem: string | null;
+  webllmProblem: string | null;
 }
-
-/**
- * Device limits that WebLLM 0.2.88 requires. Its runtime throws when the
- * adapter reports less. The values are copied from its device setup code.
- */
-const REQUIRED_LIMITS: [keyof GPUSupportedLimits, number][] = [
-  ["maxStorageBuffersPerShaderStage", 10],
-  ["maxComputeWorkgroupStorageSize", 32 << 10],
-  ["maxStorageBufferBindingSize", 1 << 27],
-  ["maxBufferSize", 1 << 28],
-];
-
-/** Checks the GPU before the model is downloaded. Returns null without WebGPU. */
-export async function checkGpu(): Promise<GpuCheck | null> {
-  if (!("gpu" in navigator)) return null;
-  const adapter = await navigator.gpu.requestAdapter();
-  if (!adapter) return null;
-  const info = adapter.info;
-  const parts = [info?.vendor, info?.architecture].filter((s) => s && s.length > 0);
-  const name = parts.length ? parts.join(" · ") : "unknown gpu";
-  for (const [limit, required] of REQUIRED_LIMITS) {
-    const actual = adapter.limits[limit] as number;
-    if (actual < required) {
-      return { name, problem: `this browser allows ${limit}=${actual}, WebLLM needs ${required}` };
-    }
-  }
-  return { name, problem: null };
+export async function checkGpu(): Promise<GpuCheck> {
+  const adapter = await navigator.gpu?.requestAdapter();
+  if (!adapter || adapter.info.isFallbackAdapter)
+    return {
+      name: "WebGPU unavailable",
+      onnxProblem:
+        "Contributing needs WebGPU. Try a recent Chrome or Edge browser.",
+      webllmProblem:
+        "Contributing needs WebGPU. Try a recent Chrome or Edge browser.",
+    };
+  const name =
+    [adapter.info.vendor, adapter.info.architecture]
+      .filter(Boolean)
+      .join(" · ") || "WebGPU";
+  const problem =
+    adapter.limits.maxStorageBufferBindingSize < 120_000_000
+      ? "This GPU cannot hold the model’s shared embedding."
+      : null;
+  const limits: [keyof GPUSupportedLimits, number][] = [
+    ["maxStorageBuffersPerShaderStage", 10],
+    ["maxComputeWorkgroupStorageSize", 32768],
+    ["maxStorageBufferBindingSize", 1 << 27],
+    ["maxBufferSize", 1 << 28],
+  ];
+  const failed = limits.find(
+    ([limit, min]) => (adapter.limits[limit] as number) < min,
+  );
+  return {
+    name,
+    onnxProblem: problem,
+    webllmProblem: failed
+      ? "This browser’s GPU limits are too low for WebLLM. Try Chrome or Edge."
+      : null,
+  };
 }

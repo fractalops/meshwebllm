@@ -22,7 +22,7 @@ use crate::{
 
 const SWEEP_INTERVAL: Duration = Duration::from_secs(1);
 /// Announcements requested within this window are sent once.
-const COALESCE: Duration = Duration::from_millis(500);
+const COALESCE: Duration = Duration::from_secs(2);
 const EVENT_CAPACITY: usize = 256;
 
 /// Current time in milliseconds since the Unix epoch.
@@ -38,6 +38,13 @@ struct Shared {
     roster: Roster,
     neighbors: usize,
     own: Option<WorkerInfo>,
+    updates: Option<async_channel::Sender<()>>,
+}
+
+#[derive(Debug)]
+struct Sender {
+    gossip: GossipSender,
+    timestamp_ms: u64,
 }
 
 /// Membership in one pool. Dropping it stops all background tasks.
@@ -45,10 +52,11 @@ struct Shared {
 pub struct Pool {
     me: EndpointId,
     secret_key: SecretKey,
-    sender: Arc<tokio::sync::Mutex<GossipSender>>,
+    sender: Arc<tokio::sync::Mutex<Sender>>,
     shared: Arc<Mutex<Shared>>,
     wake: Arc<Notify>,
     events: async_channel::Receiver<RosterEvent>,
+    updates: async_channel::Receiver<()>,
     _tasks: Arc<[AbortOnDropHandle<()>; 3]>,
 }
 
@@ -67,8 +75,15 @@ impl Pool {
             .subscribe(presence::pool_topic(pool_name), bootstrap)
             .await?;
         let (sender, receiver) = topic.split();
-        let sender = Arc::new(tokio::sync::Mutex::new(sender));
-        let shared = Arc::new(Mutex::new(Shared::default()));
+        let sender = Arc::new(tokio::sync::Mutex::new(Sender {
+            gossip: sender,
+            timestamp_ms: 0,
+        }));
+        let (update_tx, updates) = async_channel::bounded(1);
+        let shared = Arc::new(Mutex::new(Shared {
+            updates: Some(update_tx),
+            ..Shared::default()
+        }));
         let wake = Arc::new(Notify::new());
         let (tx, rx) = async_channel::bounded(EVENT_CAPACITY);
 
@@ -95,6 +110,7 @@ impl Pool {
             shared,
             wake,
             events: rx,
+            updates,
             _tasks: Arc::new([
                 AbortOnDropHandle::new(recv_task),
                 AbortOnDropHandle::new(sweep_task),
@@ -108,11 +124,14 @@ impl Pool {
     }
 
     /// Sets this node's worker status. The status is broadcast with every
-    /// heartbeat. A change of state is broadcast at once.
+    /// heartbeat. Changes wake the sender and share a two-second rate limit.
     pub fn announce(&self, info: WorkerInfo) {
         let changed = {
             let mut s = self.shared.lock().expect("poisoned");
-            let changed = s.own.as_ref().map(|o| o.state) != Some(info.state);
+            if let Some(own) = &mut s.own {
+                own.uptime_secs = info.uptime_secs;
+            }
+            let changed = s.own.as_ref() != Some(&info);
             s.own = Some(info);
             changed
         };
@@ -137,7 +156,12 @@ impl Pool {
         self.shared.lock().expect("poisoned").neighbors
     }
 
-    /// Membership changes. If nobody reads them, old events are dropped.
+    /// Coalesced invalidations. Read a fresh roster after each signal.
+    pub fn updates(&self) -> async_channel::Receiver<()> {
+        self.updates.clone()
+    }
+
+    /// Membership changes. If nobody reads them, new events can be dropped.
     pub fn events(&self) -> async_channel::Receiver<RosterEvent> {
         self.events.clone()
     }
@@ -145,11 +169,13 @@ impl Pool {
 
 async fn broadcast(
     key: &SecretKey,
-    sender: &tokio::sync::Mutex<GossipSender>,
+    sender: &tokio::sync::Mutex<Sender>,
     a: &Announcement,
 ) -> Result<(), ApiError> {
-    match presence::encode(key, now_ms(), a) {
-        Ok(bytes) => sender.lock().await.broadcast(Bytes::from(bytes)).await,
+    let mut sender = sender.lock().await;
+    sender.timestamp_ms = now_ms().max(sender.timestamp_ms.saturating_add(1));
+    match presence::encode(key, sender.timestamp_ms, a) {
+        Ok(bytes) => sender.gossip.broadcast(Bytes::from(bytes)).await,
         Err(err) => {
             warn!("cannot encode announcement: {err}");
             Ok(())
@@ -161,7 +187,7 @@ async fn receive_loop(
     me: EndpointId,
     key: SecretKey,
     mut receiver: GossipReceiver,
-    sender: Arc<tokio::sync::Mutex<GossipSender>>,
+    sender: Arc<tokio::sync::Mutex<Sender>>,
     shared: Arc<Mutex<Shared>>,
     wake: Arc<Notify>,
     events: async_channel::Sender<RosterEvent>,
@@ -177,7 +203,9 @@ async fn receive_loop(
         };
         let roster_event = {
             let mut s = shared.lock().expect("poisoned");
-            match event {
+            let revision = s.roster.revision();
+            let neighbors = s.neighbors;
+            let result = match event {
                 Event::NeighborUp(_) => {
                     s.neighbors += 1;
                     None
@@ -204,7 +232,13 @@ async fn receive_loop(
                 },
                 Event::Lagged => None,
                 _ => None,
+            };
+            if (revision != s.roster.revision() || neighbors != s.neighbors)
+                && let Some(tx) = &s.updates
+            {
+                let _ = tx.try_send(());
             }
+            result
         };
         if let Some(e) = roster_event {
             let _ = events.try_send(e);
@@ -227,6 +261,11 @@ async fn sweep_loop(shared: Arc<Mutex<Shared>>, events: async_channel::Sender<Ro
         let now = now_ms();
         let swept = shared.lock().expect("poisoned").roster.sweep(previous, now);
         previous = now;
+        if !swept.is_empty()
+            && let Some(tx) = &shared.lock().expect("poisoned").updates
+        {
+            let _ = tx.try_send(());
+        }
         for e in swept {
             let _ = events.try_send(e);
         }
@@ -235,7 +274,7 @@ async fn sweep_loop(shared: Arc<Mutex<Shared>>, events: async_channel::Sender<Ro
 
 async fn heartbeat_loop(
     key: SecretKey,
-    sender: Arc<tokio::sync::Mutex<GossipSender>>,
+    sender: Arc<tokio::sync::Mutex<Sender>>,
     shared: Arc<Mutex<Shared>>,
     wake: Arc<Notify>,
 ) {
@@ -246,7 +285,9 @@ async fn heartbeat_loop(
         {
             warn!("heartbeat failed: {err}");
         }
-        n0_future::future::race(time::sleep(HEARTBEAT), wake.notified()).await;
+        // All worker status traffic shares this minimum interval, including
+        // state changes and replies to Hello. Pending changes use latest data.
         time::sleep(COALESCE).await;
+        n0_future::future::race(time::sleep(HEARTBEAT - COALESCE), wake.notified()).await;
     }
 }

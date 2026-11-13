@@ -1,36 +1,58 @@
-/** Pool and model settings for the page. */
-
 export const POOL_NAME = "meshwebllm/pool/v1";
-
+export const SMOL_ID = "SmolLM2-135M-Instruct-ONNX-Q4";
 export interface ModelSpec {
   id: string;
-  downloadGB: number;
-  vramGB: number;
+  name: string;
+  description: string;
+  downloadMB: number;
+  runtime: "onnx" | "webllm";
+  shared: boolean;
 }
-
-/** Models the page accepts. Sizes are from the mlc-ai Hugging Face repos and WebLLM's config. */
 export const MODELS: ModelSpec[] = [
-  { id: "Qwen3-4B-q4f16_1-MLC", downloadGB: 2.28, vramGB: 3.4 },
-  { id: "SmolLM2-360M-Instruct-q4f16_1-MLC", downloadGB: 0.21, vramGB: 0.4 },
+  {
+    id: SMOL_ID,
+    name: "SmolLM2 · 135M",
+    description:
+      "A small model for quick experiments. Run it here or split its layers with a friend.",
+    downloadMB: 182,
+    runtime: "onnx",
+    shared: true,
+  },
+  {
+    id: "SmolLM2-360M-Instruct-q4f16_1-MLC",
+    name: "SmolLM2 · 360M",
+    description: "A lightweight chat model running on one browser GPU.",
+    downloadMB: 210,
+    runtime: "webllm",
+    shared: false,
+  },
+  {
+    id: "Qwen3-4B-q4f16_1-MLC",
+    name: "Qwen3 · 4B",
+    description:
+      "More capable, with a larger download. Needs about 3.4 GB of GPU memory.",
+    downloadMB: 2280,
+    runtime: "webllm",
+    shared: false,
+  },
 ];
-
-/** The pool model. A `?model=ID` query selects another listed model for tests. */
-export const MODEL: ModelSpec =
-  MODELS.find((m) => m.id === new URLSearchParams(location.search).get("model")) ?? MODELS[0];
-
-/** Seconds between two status announcements. Matches the core crate. */
-export const HEARTBEAT_S = 10;
-export const STALE_S = 30;
-
-/**
- * Bootstrap nodes. A `?bootstrap=ID1,ID2` query overrides the build value,
- * which comes from the VITE_BOOTSTRAP environment variable.
- */
+export const initialModel = () =>
+  MODELS.find(
+    (m) => m.id === new URLSearchParams(location.search).get("model"),
+  ) ?? MODELS[0];
 export function bootstrapIds(): string[] {
-  const fromQuery = new URLSearchParams(location.search).get("bootstrap");
-  const raw = fromQuery ?? (import.meta.env.VITE_BOOTSTRAP as string | undefined) ?? "";
-  return raw
+  return (
+    new URLSearchParams(location.search).get("bootstrap") ??
+    import.meta.env.VITE_BOOTSTRAP ??
+    ""
+  )
     .split(",")
-    .map((s) => s.trim())
+    .map((s: string) => s.trim())
     .filter(Boolean);
+}
+/** Local test overrides are not accepted by the deployed app. */
+export function testRelay(): string | undefined {
+  return import.meta.env.DEV
+    ? (new URLSearchParams(location.search).get("relay") ?? undefined)
+    : undefined;
 }

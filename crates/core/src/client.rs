@@ -1,6 +1,6 @@
 //! Client side of the inference protocol.
 
-use iroh::endpoint::{ClosedStream, Connection, ConnectionError};
+use iroh::endpoint::{ClosedStream, Connection, ConnectionError, RecvStream};
 
 use crate::proto::{ErrorCode, FrameError, Request, Response, read_frame, write_frame};
 
@@ -39,6 +39,47 @@ impl AskError {
     }
 }
 
+/// One response stream. Dropping it stops receiving this completion without
+/// closing the connection or affecting other requests.
+pub struct CompletionStream {
+    recv: RecvStream,
+    finished: bool,
+}
+
+impl CompletionStream {
+    /// Opens a completion using the existing inference protocol.
+    pub async fn open(conn: &Connection, request: &Request) -> Result<Self, AskError> {
+        let (mut send, recv) = conn.open_bi().await?;
+        write_frame(&mut send, request).await?;
+        send.finish()?;
+        Ok(Self {
+            recv,
+            finished: false,
+        })
+    }
+
+    /// Returns chunks and the final Done or Error frame. An early EOF is an error.
+    pub async fn next(&mut self) -> Result<Option<Response>, AskError> {
+        if self.finished {
+            return Ok(None);
+        }
+        match read_frame::<_, Response>(&mut self.recv).await {
+            Ok(Some(response)) => {
+                self.finished = !matches!(response, Response::Chunk { .. });
+                Ok(Some(response))
+            }
+            Ok(None) => {
+                self.finished = true;
+                Err(AskError::Incomplete)
+            }
+            Err(err) => {
+                self.finished = true;
+                Err(err.into())
+            }
+        }
+    }
+}
+
 /// Runs one completion on an open connection. Calls `on_chunk` for each
 /// piece of text as it arrives.
 pub async fn ask(
@@ -46,13 +87,9 @@ pub async fn ask(
     request: &Request,
     mut on_chunk: impl FnMut(&str),
 ) -> Result<Completion, AskError> {
-    let (mut send, mut recv) = conn.open_bi().await?;
-    // The worker sees the stream only after the first bytes arrive, so the
-    // client always writes first.
-    write_frame(&mut send, request).await?;
-    send.finish()?;
+    let mut stream = CompletionStream::open(conn, request).await?;
     loop {
-        match read_frame::<_, Response>(&mut recv).await? {
+        match stream.next().await? {
             Some(Response::Chunk { text }) => on_chunk(&text),
             Some(Response::Done {
                 model,

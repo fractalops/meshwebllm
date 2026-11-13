@@ -1,0 +1,15 @@
+[package]
+name = "libgrid-test-relay"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+iroh-relay = { version = "=1.4.1", default-features = false, features = ["server", "tls-ring"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
+
+[profile.dev]
+debug = 0
+incremental = false

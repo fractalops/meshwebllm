@@ -20,6 +20,35 @@ jobs:
       - run: cargo clippy -p meshwebllm-web --target wasm32-unknown-unknown -- -D warnings
       - run: cargo test --workspace --exclude meshwebllm-web
 
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: web
+      - name: Install matching wasm-bindgen
+        run: |
+          version=$(cargo metadata --format-version 1 --locked | jq -r '.packages[] | select(.name == "wasm-bindgen") | .version')
+          cargo install wasm-bindgen-cli --version "$version" --locked
+      - run: ./scripts/build-wasm.sh --dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --prefix web
+      - uses: actions/cache@v4
+        with:
+          path: experiments/layer-split/artifacts/source
+          key: smollm2-12fd25f77366fa6b3b4b768ec3050bf629380bac
+      - run: ./scripts/test-model-fixture.sh
+      - run: npm --prefix web test
+      - run: npm --prefix web run build
+
   deny:
     runs-on: ubuntu-latest
     steps:

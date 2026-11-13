@@ -113,6 +113,41 @@ async fn worker_appears_changes_and_leaves() {
         "a node does not list itself"
     );
 
+    let updates = o.updates();
+    while updates.try_recv().is_ok() {}
+    let mut changed = info(WorkerState::Idle);
+    changed.served = 4;
+    changed.waiting = 2;
+    changed.tokens_per_sec = 42.0;
+    w.announce(changed.clone());
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            updates.recv().await.unwrap();
+            if o.roster().get(&w.id()).is_some_and(|m| m.info == changed) {
+                break;
+            }
+        }
+    })
+    .await
+    .expect("same-state counters should trigger a roster update");
+    let seen = o.roster().get(&w.id()).unwrap().last_seen_ms;
+    for count in 5..20 {
+        changed.served = count;
+        w.announce(changed.clone());
+    }
+    tokio::time::sleep(Duration::from_millis(1000)).await;
+    assert_eq!(o.roster().get(&w.id()).unwrap().last_seen_ms, seen);
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            updates.recv().await.unwrap();
+            if o.roster().get(&w.id()).is_some_and(|m| m.info == changed) {
+                break;
+            }
+        }
+    })
+    .await
+    .expect("coalescing should deliver the newest counters");
+
     w.leave().await.unwrap();
     eventually("observer drops the worker", || o.roster().is_empty()).await;
     assert_eq!(events.recv().await.unwrap(), RosterEvent::Left(w.id()));
