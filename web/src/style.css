@@ -1408,9 +1408,6 @@ strong {
     padding: 11px 9px;
     min-height: 43px;
   }
-  .suggestion:last-child {
-    display: none;
-  }
   .composer {
     padding: 14px 14px 11px;
     border-radius: 14px;

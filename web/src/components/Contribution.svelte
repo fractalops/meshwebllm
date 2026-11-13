@@ -22,6 +22,7 @@
   import Icon from "./Icon.svelte";
   interface Props {
     model: ModelSpec;
+    shortcut?: boolean;
     progress: RuntimeProgress;
     running: boolean;
     canPause: boolean;
@@ -38,6 +39,7 @@
   }
   let {
     model,
+    shortcut = false,
     progress,
     running,
     canPause,
@@ -86,49 +88,57 @@
     }
   }}
 >
-  <div class="device-card">
-    <div class="device-heading">
-      <Icon name="device" size={18} /><span>Your device</span><span
-        class="status-dot"
-        class:online={running &&
-          !paused &&
-          (progress.phase === "ready" || progress.phase === "busy")}
-      ></span>
-    </div>
-    <strong
-      >{running
-        ? paused
-          ? "Sharing paused"
-          : progress.phase === "ready"
-            ? "Compute shared"
-            : progress.phase === "busy"
-              ? "Answering a request"
-              : progress.phase === "error"
-                ? "Sharing interrupted"
-                : "Getting ready…"
-        : "Here to chat"}</strong
+  {#if shortcut}
+    <DialogTrigger class="suggestion"
+      ><Icon name="device" size={18} /><span
+        >{running ? "Manage sharing" : "Share compute"}</span
+      ><Icon name="external" size={15} /></DialogTrigger
     >
-    <p>
-      {running
-        ? (contributingModel ?? model.name)
-        : "No model download needed."}
-    </p>
-    {#if running}
-      {#if loading}<Progress
-          class="mini-progress"
-          aria-label="Model preparation"
-          value={progress.total
-            ? ((progress.loaded ?? 0) / progress.total) * 100
-            : null}
-          ><ProgressTrack><ProgressIndicator /></ProgressTrack></Progress
-        >{/if}
-      <DialogTrigger class="button subtle full"
-        >Manage sharing <Icon name="chevron" size={15} /></DialogTrigger
+  {:else}
+    <div class="device-card">
+      <div class="device-heading">
+        <Icon name="device" size={18} /><span>Your device</span><span
+          class="status-dot"
+          class:online={running &&
+            !paused &&
+            (progress.phase === "ready" || progress.phase === "busy")}
+        ></span>
+      </div>
+      <strong
+        >{running
+          ? paused
+            ? "Sharing paused"
+            : progress.phase === "ready"
+              ? "Compute shared"
+              : progress.phase === "busy"
+                ? "Answering a request"
+                : progress.phase === "error"
+                  ? "Sharing interrupted"
+                  : "Getting ready…"
+          : "Here to chat"}</strong
       >
-    {:else}<DialogTrigger class="button subtle full"
-        >Share compute <Icon name="plus" size={16} /></DialogTrigger
-      >{/if}
-  </div>
+      <p>
+        {running
+          ? (contributingModel ?? model.name)
+          : "No model download needed."}
+      </p>
+      {#if running}
+        {#if loading}<Progress
+            class="mini-progress"
+            aria-label="Model preparation"
+            value={progress.total
+              ? ((progress.loaded ?? 0) / progress.total) * 100
+              : null}
+            ><ProgressTrack><ProgressIndicator /></ProgressTrack></Progress
+          >{/if}
+        <DialogTrigger class="button subtle full"
+          >Manage sharing <Icon name="chevron" size={15} /></DialogTrigger
+        >
+      {:else}<DialogTrigger class="button subtle full"
+          >Share compute <Icon name="plus" size={16} /></DialogTrigger
+        >{/if}
+    </div>
+  {/if}
   <DialogBackdrop class="dialog-backdrop" />
   <DialogContent
     class="dialog contribution-dialog"

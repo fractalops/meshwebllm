@@ -37,6 +37,8 @@ The runtime output-head transformation passed CPU numerical checks. The user als
 
 ## Network console (0.3.1)
 
+Chat includes a Share compute shortcut beside the starter prompts, including on phones. It uses the same sharing component and explicit opt-in flow as the sidebar.
+
 The overview separates ready workers, running requests, queue depth, and available models. Model availability and chat actions use the same queue limits as the chat router. A worker can be online without being ready to accept a request.
 
 The worker table is the primary workspace. Select a worker to open an accessible detail dialog with its reported device, model runtime, queue, counters, last generation rate, and observed activity. The dialog follows the live roster: stale workers become offline and departed workers show a departure state. Chat selects a worker for the model, not necessarily the row being inspected.
