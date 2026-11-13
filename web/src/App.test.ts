@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   start: vi.fn(),
   close: vi.fn(),
   gpu: vi.fn(),
+  workerModel: "SmolLM2-135M-Instruct-ONNX-Q4",
 }));
 const modelId = "SmolLM2-135M-Instruct-ONNX-Q4";
 vi.mock("./mesh-session", () => ({
@@ -19,7 +20,7 @@ vi.mock("./mesh-session", () => ({
           {
             id: "remote-worker",
             info: {
-              model: "SmolLM2-135M-Instruct-ONNX-Q4",
+              model: mocks.workerModel,
               state: "idle",
               adapter: "Test GPU",
               waiting: 0,
@@ -69,6 +70,7 @@ vi.mock("./runtime/split", () => ({
 const agent = createAgent();
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.workerModel = modelId;
   history.replaceState(null, "", "/");
   mocks.gpu.mockResolvedValue({
     name: "Test GPU",
@@ -182,4 +184,34 @@ test("two-device sharing is an explicit selection", async () => {
     expect.objectContaining({ id: modelId }),
     "shared",
   );
+});
+
+test("a worker for another model offers an explicit switch without losing the draft", async () => {
+  mocks.workerModel = "SmolLM2-360M-Instruct-q4f16_1-MLC";
+  render(App);
+  await screen.findByRole("button", { name: "Network status: Connected" });
+  expect(screen.getByText("No workers for this model")).toBeTruthy();
+  expect(
+    screen.getByText("SmolLM2 · 135M has no workers online."),
+  ).toBeTruthy();
+  const input = screen.getByRole("textbox", { name: "Message the network" });
+  await userEvent.type(input, "What is the capital of France?");
+  expect(
+    (screen.getByRole("button", { name: "Send message" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Use SmolLM2 · 360M" }),
+  );
+  expect((input as HTMLTextAreaElement).value).toBe(
+    "What is the capital of France?",
+  );
+  expect(screen.getByText("1 worker available")).toBeTruthy();
+  expect(new URLSearchParams(location.search).get("model")).toBe(
+    mocks.workerModel,
+  );
+  expect(mocks.complete).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Send message" }));
+  await screen.findByText("Paris", { selector: "strong" });
+  expect(mocks.complete).toHaveBeenCalled();
 });

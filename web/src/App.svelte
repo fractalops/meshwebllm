@@ -84,6 +84,25 @@
     MODELS.find((item) => item.id === current.model) ?? MODELS[0],
   );
   const available = $derived(chatCandidates(members, model.id).length);
+  const liveWorkers = $derived(members.filter((member) => !member.stale));
+  const modelWorkers = $derived(
+    liveWorkers.filter((member) => member.info.model === model.id),
+  );
+  const alternatives = $derived(
+    MODELS.filter(
+      (option) =>
+        option.id !== model.id && chatCandidates(members, option.id).length > 0,
+    ),
+  );
+  const unavailableLabel = $derived(
+    !neighbors
+      ? "Finding peers…"
+      : !liveWorkers.length
+        ? "No workers online"
+        : modelWorkers.length
+          ? "No capacity for this model"
+          : "No workers for this model",
+  );
   const gpuProblem = $derived(
     !gpuReady
       ? "Checking this device’s GPU…"
@@ -225,6 +244,12 @@
     const url = new URL(location.href);
     url.searchParams.set("model", id);
     history.replaceState(null, "", url);
+  }
+  function useAvailableModel(id: string) {
+    const draft = current.draft;
+    setModel(id);
+    // An existing conversation starts a new model context; keep the unsent prompt.
+    if (draft) chat.draft(draft);
   }
   function newChat() {
     chat.newConversation();
@@ -601,7 +626,7 @@
                     ? "Connecting…"
                     : available
                       ? `${available} worker${available === 1 ? "" : "s"} available`
-                      : "Waiting for a worker"}</span
+                      : unavailableLabel}</span
               >
               <div class="composer-actions">
                 <Select
@@ -649,13 +674,48 @@
               >Enter to send · Shift + Enter for a new line</span
             >
           </div>
-          {#if !available && connection !== "connecting"}<p
-              class="availability-help"
-            >
-              {connection === "error"
-                ? "Open Network to reconnect."
-                : "Try another model, or share compute from a supported device."}
-            </p>{/if}
+          {#if !available && (session || connection === "error") && connection !== "connecting"}
+            <div class="availability-help" aria-live="polite">
+              {#if connection === "error"}
+                <p>Connection failed. Open Network to reconnect.</p>
+                <Button
+                  class="button subtle"
+                  onclick={() => navigate("network")}>Open Network</Button
+                >
+              {:else if alternatives.length}
+                <p>
+                  {modelWorkers.length
+                    ? `${model.name} has no capacity right now.`
+                    : `${model.name} has no workers online.`}
+                </p>
+                <div class="available-model-actions">
+                  {#each alternatives as option (option.id)}<Button
+                      class="button subtle"
+                      onclick={() => useAvailableModel(option.id)}
+                      ><i class="status-dot online"></i>Use {option.name}<Icon
+                        name="external"
+                        size={14}
+                      /></Button
+                    >{/each}
+                </div>
+              {:else if !neighbors}
+                <p>Looking for peers. Open Network to check the connection.</p>
+                <Button class="text-button" onclick={() => navigate("network")}
+                  >Connection details</Button
+                >
+              {:else}
+                <p>
+                  {modelWorkers.length
+                    ? `${model.name} workers are preparing, paused, or at capacity.`
+                    : `No worker is sharing ${model.name} yet.`}
+                </p>
+                <p>
+                  Start sharing on one device and keep its tab open. Refreshing
+                  stops sharing.
+                </p>
+              {/if}
+            </div>
+          {/if}
           <p class="privacy-note">
             The worker can read your messages. Conversations stay in this tab.
           </p>

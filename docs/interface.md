@@ -46,3 +46,12 @@ The worker table is the primary workspace. Select a worker to open an accessible
 Two-device coordinators are identified by the existing publisher's ` · 2 devices` adapter suffix. The detail panel labels the diagram as worker-reported configuration. For the supported 135M split it shows layers 0–14 and 15–29; it does not invent the invited peer's ID or separate stage health. The protocol currently reports aggregate team status only.
 
 Validation: 23 Node tests and nine component/lifecycle tests passed, including queue saturation and a selected worker going stale then disappearing. Svelte checks and the production build passed. The desktop and 390 × 844 phone layouts were reviewed with a live worker; the phone page has no horizontal overflow and the roster scrolls independently. Opening worker details and choosing chat produced a complete eight-token Paris reply from the existing 360M GPU worker over iroh. The inference runtime is unchanged in this UI release.
+
+
+## Model availability recovery (0.3.2)
+
+A fresh chat defaults to 135M. With only a 360M worker online, the previous generic “Waiting for a worker” message implied an empty pool. This was reproduced on the public site: the Network badge showed one worker while chat could not send; choosing 360M completed a real GPU reply over iroh.
+
+Chat now distinguishes finding peers, an empty roster, no worker for the selected model, and workers without capacity. When another supported model can accept requests, an explicit Use button switches to it and preserves the unsent prompt. It never silently changes the user's model or shares compute. Sharing copy also explains that refreshing stops a contribution.
+
+A component regression reproduces the cross-model roster, checks the explanation and disabled Send state, then switches models, preserves the draft, and completes a request. The test failed before the fix and passes with it. All 33 web tests and Svelte checks pass. This addresses the reproduced model-selection issue; it does not establish that every reported device has healthy discovery.
