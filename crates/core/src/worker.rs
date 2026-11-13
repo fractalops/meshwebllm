@@ -4,11 +4,16 @@
 //! queue as a [`Job`]. The model runtime takes jobs from [`JobQueue`] and
 //! answers them. The handler answers `Busy` when the queue is full and
 //! `Paused` when the worker is paused, so the model runtime never sees those
-//! requests.
+//! requests. A request must arrive within the handler's request timeout.
+//! [`JobQueue::next`] skips jobs whose client already stopped reading.
 
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
+use std::{
+    future::Future,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
 };
 
 use iroh::{
@@ -16,6 +21,7 @@ use iroh::{
     endpoint::{Connection, RecvStream, SendStream},
     protocol::{AcceptError, ProtocolHandler},
 };
+use n0_future::time::timeout;
 use tracing::{debug, warn};
 
 use crate::proto::{ErrorCode, FrameError, Request, Response, read_frame, write_frame};
@@ -29,6 +35,9 @@ pub enum JobError {
     Closed(#[from] iroh::endpoint::ClosedStream),
 }
 
+/// Default time a client has to send its whole request after opening a stream.
+pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+
 /// One request waiting for the model.
 #[derive(Debug)]
 pub struct Job {
@@ -38,6 +47,29 @@ pub struct Job {
 }
 
 impl Job {
+    /// Completes when the client stops reading this completion or its
+    /// connection closes, so the model can stop before its next write.
+    ///
+    /// The future does not borrow the job. After the job ends it also
+    /// completes once the reply is acknowledged or the client drops its
+    /// reader, so treat it as a cancellation only while the job is running.
+    pub fn cancelled(&self) -> impl Future<Output = ()> + Send + 'static {
+        let stopped = self.send.stopped();
+        async move {
+            let _ = stopped.await;
+        }
+    }
+
+    /// Whether the client already stopped reading this completion or its
+    /// connection closed.
+    pub fn is_cancelled(&self) -> bool {
+        // A running job has not finished its stream, so `Ok(None)` cannot occur.
+        matches!(
+            n0_future::future::now_or_never(self.send.stopped()),
+            Some(Ok(Some(_)) | Err(_))
+        )
+    }
+
     /// Sends one piece of generated text.
     pub async fn chunk(&mut self, text: String) -> Result<(), JobError> {
         Ok(write_frame(&mut self.send, &Response::Chunk { text }).await?)
@@ -75,6 +107,7 @@ impl Job {
 pub struct InferHandler {
     jobs: async_channel::Sender<Job>,
     paused: Arc<AtomicBool>,
+    request_timeout: Duration,
 }
 
 /// The model runtime's end of the job queue.
@@ -93,6 +126,7 @@ pub fn job_queue(capacity: usize) -> (InferHandler, JobQueue) {
         InferHandler {
             jobs: tx,
             paused: paused.clone(),
+            request_timeout: REQUEST_TIMEOUT,
         },
         JobQueue { jobs: rx, paused },
     )
@@ -100,8 +134,16 @@ pub fn job_queue(capacity: usize) -> (InferHandler, JobQueue) {
 
 impl JobQueue {
     /// Waits for the next job. Returns `None` when the handler is gone.
+    /// Jobs whose client stopped reading while they waited are dropped here,
+    /// so the model never starts work that nobody will receive.
     pub async fn next(&self) -> Option<Job> {
-        self.jobs.recv().await.ok()
+        loop {
+            let job = self.jobs.recv().await.ok()?;
+            if !job.is_cancelled() {
+                return Some(job);
+            }
+            debug!(peer = %job.peer, "skipping a request whose client left");
+        }
     }
 
     /// Number of jobs waiting.
@@ -120,13 +162,30 @@ impl JobQueue {
 }
 
 impl InferHandler {
+    /// Sets how long a client has to send its whole request. The default is
+    /// [`REQUEST_TIMEOUT`]. A stalled stream is reset after this time.
+    pub fn with_request_timeout(mut self, request_timeout: Duration) -> Self {
+        self.request_timeout = request_timeout;
+        self
+    }
+
     async fn handle_stream(
         &self,
         peer: EndpointId,
         mut send: SendStream,
         mut recv: RecvStream,
     ) -> Result<(), JobError> {
-        let Some(request) = read_frame::<_, Request>(&mut recv).await? else {
+        let request = match timeout(self.request_timeout, read_frame::<_, Request>(&mut recv)).await
+        {
+            Ok(request) => request?,
+            Err(_) => {
+                debug!(%peer, "request did not arrive in time");
+                let _ = recv.stop(0u32.into());
+                let _ = send.reset(0u32.into());
+                return Ok(());
+            }
+        };
+        let Some(request) = request else {
             return Ok(());
         };
         let reject = |code, message: &str| Response::Error {
