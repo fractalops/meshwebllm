@@ -61,7 +61,7 @@ Choose a model and chat. Routing uses only non-stale workers advertising that ex
 
 **Share compute** offers whole-model execution, and a two-browser shared preview for SmolLM2 135M. GPU checks run before downloading. Downloads report progress and caches survive visits. ONNX peer weights are content-verified; WebLLM shards are length-checked. Stop during preparation cancels loading. Pause interrupts active generation and rejects new jobs; resume makes the existing session available again. Stop ends the contribution and releases its GPU worker.
 
-The **Network** view shows workers, their models, availability, and adapter. Connection details show the local endpoint and pool. A shared team is advertised as one worker only when both stages are ready. An invited stage does not advertise a complete model. Worker availability is self-reported.
+The **Network** dashboard shows availability, active and queued requests, reported completions and token totals, and a searchable worker table. The request chart and activity log record observations from the current tab session. Totals describe workers currently in view; they are not lifetime pool counters. Connection details show the local endpoint and pool. A shared team is advertised as one worker only when both stages are ready. An invited stage does not advertise a complete model. Worker availability is self-reported.
 
 | Query | Description |
 | --- | --- |

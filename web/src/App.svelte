@@ -23,6 +23,7 @@
   import { Contributor, checkGpu, type GpuCheck } from "./contributor";
   import { MeshSession } from "./mesh-session";
   import { ChatStateController } from "./chat-state";
+  import { NetworkTimeline } from "./network-state";
   import { chatCandidates } from "./chat-client";
   import {
     readInvitation,
@@ -38,6 +39,8 @@
   import Network from "./components/Network.svelte";
 
   const chat = new ChatStateController(initialModel().id);
+  const timeline = new NetworkTimeline();
+  let networkHistory = $state(timeline.history);
   let chatState = $state(chat.state);
   let view = $state(
     new URLSearchParams(location.search).get("view") === "network"
@@ -167,6 +170,7 @@
         progress: { ...contributor.progress },
       };
     chat.updateNetwork(session?.node, members);
+    networkHistory = timeline.observe(members);
   }
   function createContributor() {
     if (!session || !gpuReady || contributor || disposed) return;
@@ -510,6 +514,7 @@
         {members}
         {neighbors}
         {selfId}
+        history={networkHistory}
         status={connection}
         error={connectionError}
         onchat={(id) => {
