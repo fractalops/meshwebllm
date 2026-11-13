@@ -2,7 +2,7 @@
 
 A real SmolLM2-135M inference split: layers 0–14 in one Web Worker, layers 15–29 in another. Each creates its own ONNX Runtime WebGPU session and loads only its stage graph. A third worker loads the original model as the correctness reference. All three use this Mac's physical GPU.
 
-Two transports are available: serialized local worker messages, and two browser iroh endpoints under the experimental ALPN `meshwebllm/experiment-stage/0`. The endpoints live in the coordinating page; GPU work lives in the two workers. The production completion protocol is unchanged, and the Rust binding is behind the non-default `layer-split-experiment` feature.
+Two transports are available: serialized local worker messages and two browser iroh endpoints. The recorded initial run used `meshwebllm/experiment-stage/0`; rebuilding now uses the product’s `meshwebllm/stage/1` transport. The endpoints live in the coordinating page; GPU work lives in the two workers. The production completion protocol remains unchanged. The Rust stage binding is now part of the normal web crate; `layer-split-experiment` remains a compatibility feature for the setup script.
 
 ## Browser-prepared weights over iroh-blobs
 

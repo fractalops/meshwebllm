@@ -227,3 +227,26 @@ test("stop releases the chat immediately even while a worker connection is pendi
   await new Promise((r) => setTimeout(r, 0));
   assert.ok(cancelled);
 });
+
+// The real WebLLM worker can be terminated while next() or model initialization
+// is pending; its RPC layer does not reject those promises on termination.
+test("termination releases a pending worker call without waiting for a reply", async () => {
+  const { withAbort } = await import("../src/runtime/abort.ts");
+  const closed = new AbortController();
+  let rejectWorker;
+  const workerCall = new Promise((_, reject) => {
+    rejectWorker = reject;
+  });
+  const pending = withAbort(workerCall, closed.signal);
+  closed.abort();
+  await assert.rejects(pending, { name: "AbortError" });
+  rejectWorker(new Error("late worker error"));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(
+    await withAbort(
+      Promise.resolve("next request"),
+      new AbortController().signal,
+    ),
+    "next request",
+  );
+});
