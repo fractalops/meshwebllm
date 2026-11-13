@@ -158,7 +158,7 @@
     >
     <DialogDescription
       >{running
-        ? "Keep this tab open and visible while you share. You can pause or stop at any time."
+        ? "Keep this tab open and visible while you share. Refreshing stops sharing. You can pause or stop at any time."
         : "Run a model on this device and answer requests from the network. Chatting does not require this."}</DialogDescription
     >
     {#if running}
