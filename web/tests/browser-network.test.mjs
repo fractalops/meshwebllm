@@ -22,6 +22,7 @@ test("iroh bindings normalize relay URLs without replacing browser globals", asy
     const transformed = scopeBrowserNetwork(`
       export const socket = (url, protocols) => new WebSocket(url, protocols);
       export const request = (url, options) => new Request(url, options);
+      export const isRequest = (value) => value instanceof Request;
     `);
     const bindings = await import(`data:text/javascript,${encodeURIComponent(transformed)}`);
     const protocols = ["iroh-relay-v1"];
@@ -44,6 +45,8 @@ test("iroh bindings normalize relay URLs without replacing browser globals", asy
     }
     assert.equal(globalThis.WebSocket, Socket);
     assert.equal(globalThis.Request, nativeRequest);
+    // wasm-bindgen's initializer also accepts a caller-created native Request.
+    assert.ok(bindings.isRequest(new nativeRequest("https://example.com/module.wasm")));
   } finally {
     globalThis.WebSocket = nativeSocket;
   }

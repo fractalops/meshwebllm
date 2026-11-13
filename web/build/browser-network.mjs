@@ -15,9 +15,11 @@ function browserNetworkUrl(input) {
 }
 const WebSocket = class extends globalThis.WebSocket {
   constructor(url, protocols) { super(browserNetworkUrl(url), protocols); }
+  static [Symbol.hasInstance](value) { return value instanceof globalThis.WebSocket; }
 };
 const Request = class extends globalThis.Request {
   constructor(input, options) { super(browserNetworkUrl(input), options); }
+  static [Symbol.hasInstance](value) { return value instanceof globalThis.Request; }
 };
 ${source}`;
 }
