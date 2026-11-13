@@ -369,6 +369,26 @@
   });
 </script>
 
+{#snippet sharing(shortcut: boolean)}
+  <Contribution
+    {shortcut}
+    {model}
+    progress={contribution.progress}
+    running={contribution.running}
+    canPause={contribution.canPause}
+    paused={contribution.paused}
+    mode={contribution.mode}
+    invite={contribution.invite}
+    contributingModel={contribution.model}
+    problem={gpuProblem}
+    connected={contributorReady}
+    onstart={start}
+    onstop={stop}
+    onpause={() => contributor?.pause()}
+    oncopy={copy}
+  />
+{/snippet}
+
 {#snippet sidebar()}
   <a class="brand" href="./" aria-label="meshwebllm home"
     ><Icon name="grid" size={29} /><span>meshwebllm</span><span
@@ -411,22 +431,7 @@
       </div>{:else}<p>Your conversations will appear here.</p>{/if}
   </div>
   <div class="sidebar-bottom">
-    <Contribution
-      {model}
-      progress={contribution.progress}
-      running={contribution.running}
-      canPause={contribution.canPause}
-      paused={contribution.paused}
-      mode={contribution.mode}
-      invite={contribution.invite}
-      contributingModel={contribution.model}
-      problem={gpuProblem}
-      connected={contributorReady}
-      onstart={start}
-      onstop={stop}
-      onpause={() => contributor?.pause()}
-      oncopy={copy}
-    />
+    {@render sharing(false)}
     <div class="sidebar-footer">
       <span
         >Connected by <a
@@ -552,7 +557,11 @@
               onclick={latest}
               ><Icon name="down" size={15} />Latest reply</Button
             >{/if}
-          {#if !current.messages.length}<div class="suggestions">
+          {#if !current.messages.length}<div
+              class="suggestions"
+              role="group"
+              aria-label="Chat shortcuts"
+            >
               {#each suggestions as suggestion (suggestion.title)}<Button
                   class="suggestion"
                   onclick={() => usePrompt(suggestion.text)}
@@ -560,6 +569,7 @@
                     >{suggestion.title}</span
                   ><Icon name="external" size={15} /></Button
                 >{/each}
+              {@render sharing(true)}
             </div>{/if}
           <form
             class="composer"

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/svelte";
+import { render, screen, waitFor, within } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { createAgent } from "@ui-sdk/svelte/agent";
 import { expect, test, vi, beforeEach } from "vitest";
@@ -128,10 +128,12 @@ test("named SDK controls route a chat, render its reply, and keep it when starti
   expect(screen.getByText("Paris", { selector: "strong" })).toBeTruthy();
 });
 
-test("sharing stays opt-in and the dialog returns focus when dismissed", async () => {
+test("chat sharing shortcut stays opt-in and returns focus when dismissed", async () => {
   render(App);
   await screen.findByText("1 worker available");
-  const share = screen.getByRole("button", { name: "Share compute" });
+  const share = within(
+    screen.getByRole("group", { name: "Chat shortcuts" }),
+  ).getByRole("button", { name: "Share compute" });
   await userEvent.click(share);
   expect(
     await screen.findByRole("dialog", { name: "Put your browser to work." }),
@@ -167,7 +169,9 @@ test("chat can connect while a GPU capability probe remains pending", async () =
 test("two-device sharing is an explicit selection", async () => {
   render(App);
   await screen.findByText("1 worker available");
-  await userEvent.click(screen.getByRole("button", { name: "Share compute" }));
+  await userEvent.click(
+    screen.getAllByRole("button", { name: "Share compute" })[0],
+  );
   await userEvent.click(
     screen.getByRole("radio", { name: /With another device/ }),
   );
