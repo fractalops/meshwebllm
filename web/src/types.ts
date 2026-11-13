@@ -42,7 +42,9 @@ export interface CompletionRequest {
   temperature: number | null;
 }
 
-export function stateName(s: WorkerState): "loading" | "idle" | "busy" | "paused" {
+export function stateName(
+  s: WorkerState,
+): "loading" | "idle" | "busy" | "paused" {
   return typeof s === "string" ? s : "loading";
 }
 

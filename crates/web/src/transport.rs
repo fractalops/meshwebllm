@@ -1,22 +1,24 @@
-//! Disposable layer-split transport. Enable only with `layer-split-experiment`.
+//! Browser stage RPC and content-verified model distribution.
 //! This ALPN is deliberately independent of the completion protocol.
 
 use std::{sync::Arc, time::Duration};
 
+use bao_tree::io::BaoContentItem;
 use iroh::{
     SecretKey,
     endpoint::{Connection, SendStream},
     protocol::{AcceptError, ProtocolHandler, Router},
 };
+use iroh_blobs::get::request::GetBlobItem;
 use iroh_blobs::{BlobsProtocol, Hash, store::mem::MemStore};
 use meshwebllm_core::bind_endpoint;
-use n0_future::time::timeout;
+use n0_future::{StreamExt, time::timeout};
 use tokio::sync::{Mutex, mpsc};
 use wasm_bindgen::prelude::*;
 
 use crate::js_err;
 
-const ALPN: &[u8] = b"meshwebllm/experiment-stage/0";
+const ALPN: &[u8] = b"meshwebllm/stage/1";
 const MAX_BYTES: usize = 8 * 1024 * 1024;
 const DEADLINE: Duration = Duration::from_secs(60);
 
@@ -24,6 +26,7 @@ const DEADLINE: Duration = Duration::from_secs(60);
 struct Pending {
     bytes: Vec<u8>,
     send: SendStream,
+    peer: iroh::EndpointId,
 }
 
 #[derive(Debug)]
@@ -32,11 +35,19 @@ struct Handler(mpsc::Sender<Pending>);
 impl ProtocolHandler for Handler {
     async fn accept(&self, connection: Connection) -> Result<(), AcceptError> {
         while let Ok((send, mut recv)) = connection.accept_bi().await {
-            // One sequential request per connection in this experiment.
+            // Read bounded messages before handing them to the application queue.
             let Ok(Ok(bytes)) = timeout(DEADLINE, recv.read_to_end(MAX_BYTES)).await else {
                 break;
             };
-            if self.0.try_send(Pending { bytes, send }).is_err() {
+            if self
+                .0
+                .try_send(Pending {
+                    bytes,
+                    send,
+                    peer: connection.remote_id(),
+                })
+                .is_err()
+            {
                 break;
             }
         }
@@ -57,22 +68,9 @@ pub struct StagePeer {
 impl StagePeer {
     pub async fn spawn(relay: Option<String>) -> Result<StagePeer, JsError> {
         let alpns = vec![ALPN.to_vec(), iroh_blobs::ALPN.to_vec()];
-        let endpoint = if let Some(url) = relay {
-            let url: iroh::RelayUrl = url.parse().map_err(js_err)?;
-            iroh::Endpoint::builder(iroh::endpoint::presets::Minimal)
-                .secret_key(SecretKey::generate())
-                .relay_mode(iroh::RelayMode::Custom(iroh::RelayMap::from(url)))
-                .alpns(alpns)
-                .bind()
-                .await
-                .map_err(js_err)?
-        } else {
-            bind_endpoint(SecretKey::generate(), alpns)
-                .await
-                .map_err(js_err)?
-        };
+        let endpoint = bind(SecretKey::generate(), alpns, relay).await?;
         let blobs = MemStore::new();
-        let (tx, rx) = mpsc::channel(1);
+        let (tx, rx) = mpsc::channel(8);
         let router = Router::builder(endpoint)
             .accept(ALPN, Handler(tx))
             .accept(iroh_blobs::ALPN, BlobsProtocol::new(&blobs, None))
@@ -102,7 +100,7 @@ impl StagePeer {
         }
         let address: iroh::EndpointAddr =
             serde_wasm_bindgen::from_value(address).map_err(js_err)?;
-        timeout(DEADLINE, async {
+        let result = timeout(DEADLINE, async {
             let mut slot = self.connection.lock().await;
             if !slot
                 .as_ref()
@@ -124,7 +122,16 @@ impl StagePeer {
             recv.read_to_end(MAX_BYTES).await.map_err(js_err)
         })
         .await
-        .map_err(js_err)?
+        .map_err(js_err)
+        .and_then(|result| result);
+        if result.is_err() {
+            // A timed-out stream may leave a connection that still appears open.
+            // A later idempotent control request must reconnect instead of reusing it.
+            if let Some(connection) = self.connection.lock().await.take() {
+                connection.close(0u32.into(), b"stage request failed");
+            }
+        }
+        result
     }
 
     #[wasm_bindgen(js_name = nextJob)]
@@ -189,13 +196,31 @@ impl StagePeer {
             let connection = slot.as_ref().expect("connection just established").clone();
             drop(slot);
             // iroh-blobs verifies the Bao/BLAKE3 stream against the requested hash.
-            let bytes = iroh_blobs::get::request::get_blob(connection, hash)
-                .await
-                .map_err(js_err)?;
-            if bytes.len() != expected_bytes {
-                return Err(js_err("blob size mismatch"));
+            let mut stream = iroh_blobs::get::request::get_blob(connection, hash);
+            let mut bytes = Vec::with_capacity(expected_bytes);
+            while let Some(item) = stream.next().await {
+                match item {
+                    GetBlobItem::Item(BaoContentItem::Leaf(leaf)) => {
+                        if leaf.offset != bytes.len() as u64
+                            || leaf.data.len() > expected_bytes.saturating_sub(bytes.len())
+                        {
+                            return Err(js_err(
+                                "blob exceeds expected size or has invalid offsets",
+                            ));
+                        }
+                        bytes.extend_from_slice(&leaf.data);
+                    }
+                    GetBlobItem::Item(_) => {}
+                    GetBlobItem::Done(_) => {
+                        if bytes.len() != expected_bytes {
+                            return Err(js_err("blob size mismatch"));
+                        }
+                        return Ok(bytes);
+                    }
+                    GetBlobItem::Error(error) => return Err(js_err(error)),
+                }
             }
-            Ok(bytes.to_vec())
+            Err(js_err("incomplete blob transfer"))
         })
         .await
         .map_err(js_err)?
@@ -211,6 +236,18 @@ pub struct StageJob(Arc<Mutex<Option<Pending>>>);
 
 #[wasm_bindgen]
 impl StageJob {
+    /// Authenticated endpoint identity from the QUIC connection, never message metadata.
+    pub async fn peer(&self) -> Result<String, JsError> {
+        Ok(self
+            .0
+            .lock()
+            .await
+            .as_ref()
+            .ok_or_else(|| js_err("job finished"))?
+            .peer
+            .to_string())
+    }
+
     pub async fn payload(&self) -> Result<Vec<u8>, JsError> {
         let guard = self.0.lock().await;
         Ok(guard
@@ -235,5 +272,25 @@ impl StageJob {
             .map_err(js_err)?
             .map_err(js_err)?;
         job.send.finish().map_err(js_err)
+    }
+}
+
+/// Optional custom relay is for explicit local testing; normal deployment uses n0.
+pub(crate) async fn bind(
+    key: SecretKey,
+    alpns: Vec<Vec<u8>>,
+    relay: Option<String>,
+) -> Result<iroh::Endpoint, JsError> {
+    if let Some(url) = relay {
+        let url: iroh::RelayUrl = url.parse().map_err(js_err)?;
+        iroh::Endpoint::builder(iroh::endpoint::presets::Minimal)
+            .secret_key(key)
+            .relay_mode(iroh::RelayMode::Custom(iroh::RelayMap::from(url)))
+            .alpns(alpns)
+            .bind()
+            .await
+            .map_err(js_err)
+    } else {
+        bind_endpoint(key, alpns).await.map_err(js_err)
     }
 }

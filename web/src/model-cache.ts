@@ -19,27 +19,39 @@ export interface DownloadProgress {
 export async function cacheModelWeights(
   modelUrl: string,
   progress: (value: DownloadProgress) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
   let base = modelUrl.endsWith("/") ? modelUrl : `${modelUrl}/`;
   if (!base.match(/.+\/resolve\/.+\//)) base += "resolve/main/";
+  signal?.throwIfAborted();
   const cache = await caches.open(MODEL_CACHE);
   const manifestUrl = new URL("tensor-cache.json", base).href;
   let manifest = await cache.match(manifestUrl);
   if (!manifest) {
-    const response = await fetch(manifestUrl);
-    if (!response.ok) throw new Error(`Model manifest: HTTP ${response.status}`);
+    const response = await fetch(manifestUrl, { signal });
+    if (!response.ok)
+      throw new Error(`Model manifest: HTTP ${response.status}`);
     manifest = new Response(await response.arrayBuffer());
     await cache.put(manifestUrl, manifest.clone());
   }
-  const { records } = await manifest.json() as { records: Shard[] };
-  if (!Array.isArray(records) || !records.length || records.some((r) =>
-    typeof r.dataPath !== "string" || !Number.isSafeInteger(r.nbytes) || r.nbytes <= 0)) {
+  const { records } = (await manifest.json()) as { records: Shard[] };
+  if (
+    !Array.isArray(records) ||
+    !records.length ||
+    records.some(
+      (r) =>
+        typeof r.dataPath !== "string" ||
+        !Number.isSafeInteger(r.nbytes) ||
+        r.nbytes <= 0,
+    )
+  ) {
     throw new Error("Invalid model download manifest.");
   }
   const total = records.reduce((sum, shard) => sum + shard.nbytes, 0);
   let loaded = 0;
   progress({ loaded, total });
   for (const shard of records) {
+    signal?.throwIfAborted();
     const url = new URL(shard.dataPath, base).href;
     const cached = await cache.match(url);
     if (cached && (await cached.arrayBuffer()).byteLength === shard.nbytes) {
@@ -47,8 +59,9 @@ export async function cacheModelWeights(
       progress({ loaded, total });
       continue;
     }
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`${shard.dataPath}: HTTP ${response.status}`);
+    const response = await fetch(url, { signal });
+    if (!response.ok)
+      throw new Error(`${shard.dataPath}: HTTP ${response.status}`);
     if (!response.body) throw new Error(`${shard.dataPath}: empty download.`);
     const bytes = new Uint8Array(shard.nbytes);
     const reader = response.body.getReader();
@@ -58,14 +71,18 @@ export async function cacheModelWeights(
         const { done, value } = await reader.read();
         if (done) break;
         if (received + value.byteLength > bytes.byteLength) {
-          throw new Error(`${shard.dataPath}: download is larger than expected.`);
+          throw new Error(
+            `${shard.dataPath}: download is larger than expected.`,
+          );
         }
         bytes.set(value, received);
         received += value.byteLength;
         progress({ loaded: loaded + received, total });
       }
       if (received !== shard.nbytes) {
-        throw new Error(`${shard.dataPath}: incomplete download (${received}/${shard.nbytes} bytes).`);
+        throw new Error(
+          `${shard.dataPath}: incomplete download (${received}/${shard.nbytes} bytes).`,
+        );
       }
       await cache.put(url, new Response(bytes));
     } finally {

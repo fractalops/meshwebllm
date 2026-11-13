@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use iroh::{Endpoint, SecretKey, endpoint::presets, protocol::Router};
 use meshwebllm_core::{
-    client::{AskError, ask},
+    client::{AskError, CompletionStream, ask},
     proto::{ErrorCode, INFER_ALPN, Request},
     worker::{JobQueue, job_queue},
 };
@@ -142,4 +142,33 @@ async fn dropped_job_is_an_error_for_the_client() {
     .expect("client must not hang");
     assert!(matches!(res, Err(AskError::Incomplete)), "{res:?}");
     assert_eq!(text, "partial");
+}
+
+#[tokio::test]
+async fn dropping_a_completion_cancels_only_its_stream() {
+    let (router, queue) = worker(4).await;
+    let (_client, conn) = connect(&router).await;
+    let mut stream = CompletionStream::open(&conn, &Request::user("cancel me"))
+        .await
+        .unwrap();
+    let mut job = queue.next().await.unwrap();
+    job.chunk("first".into()).await.unwrap();
+    assert!(stream.next().await.unwrap().is_some());
+    drop(stream);
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            if job.chunk("x".repeat(4096)).await.is_err() {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("dropping the reader must stop the worker stream");
+    drop(job);
+    echo_model(queue);
+    let done = ask(&conn, &Request::user("still connected"), |_| {})
+        .await
+        .unwrap();
+    assert_eq!(done.model, "echo");
 }

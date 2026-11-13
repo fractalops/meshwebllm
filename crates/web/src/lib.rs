@@ -1,13 +1,13 @@
 //! Browser bindings. The page runs the model. This crate runs the network.
 
-#[cfg(feature = "layer-split-experiment")]
-mod experiment;
+mod transport;
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
-use iroh::protocol::Router;
+use iroh::{endpoint::Connection, protocol::Router};
 use meshwebllm_core::{
-    EndpointId, GOSSIP_ALPN, Gossip, SecretKey, bind_endpoint,
+    Endpoint, EndpointId, GOSSIP_ALPN, Gossip, SecretKey, bind_endpoint,
+    client::CompletionStream,
     pool::{Pool, now_ms},
     presence::{RosterEvent, WorkerInfo},
     proto::{ErrorCode, INFER_ALPN, Request},
@@ -15,7 +15,7 @@ use meshwebllm_core::{
 };
 use n0_future::StreamExt;
 use serde::Serialize;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, OnceCell};
 use wasm_bindgen::prelude::*;
 use wasm_streams::readable::{ReadableStream, sys::ReadableStream as JsReadableStream};
 
@@ -88,6 +88,8 @@ pub struct MeshNode {
     router: Router,
     pool: Pool,
     queue: JobQueue,
+    requester: OnceCell<Endpoint>,
+    connection: Mutex<Option<Connection>>,
 }
 
 #[derive(Serialize)]
@@ -115,6 +117,7 @@ impl MeshNode {
         secret_key_hex: Option<String>,
         pool_name: String,
         bootstrap: Vec<String>,
+        relay: Option<String>,
     ) -> Result<MeshNode, JsError> {
         let key = match secret_key_hex {
             Some(s) => parse_key(&s)?,
@@ -125,9 +128,12 @@ impl MeshNode {
             .map(|s| s.parse::<EndpointId>())
             .collect::<Result<Vec<_>, _>>()
             .map_err(js_err)?;
-        let endpoint = bind_endpoint(key.clone(), vec![INFER_ALPN.to_vec(), GOSSIP_ALPN.to_vec()])
-            .await
-            .map_err(js_err)?;
+        let endpoint = transport::bind(
+            key.clone(),
+            vec![INFER_ALPN.to_vec(), GOSSIP_ALPN.to_vec()],
+            relay,
+        )
+        .await?;
         let gossip = Gossip::builder().spawn(endpoint.clone());
         let (handler, queue) = job_queue(QUEUE_CAPACITY);
         queue.set_paused(true);
@@ -143,6 +149,8 @@ impl MeshNode {
             router,
             pool,
             queue,
+            requester: OnceCell::new(),
+            connection: Mutex::new(None),
         })
     }
 
@@ -245,7 +253,64 @@ impl MeshNode {
             .map(|j| Job(Arc::new(Mutex::new(Some(j)))))
     }
 
+    /// Sends a chat to a worker and streams the existing response frames to JS.
+    /// A separate outbound endpoint also lets this tab test its own GPU over iroh.
+    pub async fn complete(
+        &self,
+        worker: String,
+        request: JsValue,
+    ) -> Result<JsReadableStream, JsError> {
+        let worker: EndpointId = worker.parse().map_err(js_err)?;
+        let request: Request = serde_wasm_bindgen::from_value(request).map_err(js_err)?;
+        let endpoint = self
+            .requester
+            .get_or_try_init(|| async { bind_endpoint(SecretKey::generate(), vec![]).await })
+            .await
+            .map_err(js_err)?;
+        let addr = if worker == self.router.endpoint().id() {
+            self.router.endpoint().addr()
+        } else {
+            worker.into()
+        };
+        let (connection, responses) = n0_future::time::timeout(Duration::from_secs(30), async {
+            let mut slot = self.connection.lock().await;
+            if !slot
+                .as_ref()
+                .is_some_and(|c| c.remote_id() == worker && c.close_reason().is_none())
+            {
+                *slot = Some(endpoint.connect(addr, INFER_ALPN).await.map_err(js_err)?);
+            }
+            let connection = slot.as_ref().expect("connection established").clone();
+            drop(slot);
+            let responses = CompletionStream::open(&connection, &request)
+                .await
+                .map_err(js_err)?;
+            Ok::<_, JsError>((connection, responses))
+        })
+        .await
+        .map_err(|_| js_err("The worker did not connect within 30 seconds."))??;
+        // The stream owns the receive side. Cancelling the JS stream drops it
+        // and sends STOP_SENDING; no detached task continues reading tokens.
+        let stream = n0_future::stream::unfold(
+            (responses, connection),
+            |(mut responses, connection)| async move {
+                match responses.next().await {
+                    Ok(Some(frame)) => Some((
+                        to_js(&frame).map_err(JsValue::from),
+                        (responses, connection),
+                    )),
+                    Ok(None) => None,
+                    Err(err) => Some((Err(JsValue::from(js_err(err))), (responses, connection))),
+                }
+            },
+        );
+        Ok(ReadableStream::from_stream(stream).into_raw())
+    }
+
     pub async fn shutdown(&self) {
+        if let Some(endpoint) = self.requester.get() {
+            endpoint.close().await;
+        }
         let _ = self.router.shutdown().await;
     }
 }

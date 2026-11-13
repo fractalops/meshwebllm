@@ -1,7 +1,7 @@
 {
   "name": "meshwebllm-web",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "wasm": "../scripts/build-wasm.sh",
@@ -12,11 +12,19 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@mlc-ai/web-llm": "0.2.88"
+    "@mlc-ai/web-llm": "0.2.88",
+    "onnxruntime-web": "1.23.2",
+    "onnx-proto": "8.0.1",
+    "@huggingface/tokenizers": "0.2.0"
   },
   "devDependencies": {
     "@webgpu/types": "0.1.60",
     "typescript": "5.8.3",
-    "vite": "6.3.5"
+    "vite": "6.4.6"
+  },
+  "overrides": {
+    "onnx-proto": {
+      "protobufjs": "8.8.1"
+    }
   }
 }

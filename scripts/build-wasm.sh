@@ -9,6 +9,8 @@ cargo_flags=(--release)
 if [[ "${1:-}" == "--dev" ]]; then
   profile=debug
   cargo_flags=()
+  export CARGO_PROFILE_DEV_DEBUG=0
+  export CARGO_INCREMENTAL=0
 fi
 
 # ring needs a C compiler with a wasm32 target. Apple clang has none.
@@ -24,7 +26,7 @@ if [[ "$(uname)" == "Darwin" && -z "${CC_wasm32_unknown_unknown:-}" ]]; then
 fi
 
 cargo build -p meshwebllm-web --target wasm32-unknown-unknown ${cargo_flags[@]+"${cargo_flags[@]}"}
-wasm-bindgen "target/wasm32-unknown-unknown/$profile/meshwebllm_web.wasm" \
+wasm-bindgen "${CARGO_TARGET_DIR:-target}/wasm32-unknown-unknown/$profile/meshwebllm_web.wasm" \
   --out-dir web/src/wasm --target web --weak-refs
 
 if [[ "$profile" == "release" ]] && command -v wasm-opt >/dev/null; then
