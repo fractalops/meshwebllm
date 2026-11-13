@@ -62,6 +62,9 @@ impl Job {
 
     /// Whether the client already stopped reading this completion or its
     /// connection closed.
+    ///
+    /// Each call registers a stop waiter with the QUIC connection until the
+    /// stream ends, so check it at decision points rather than in a hot loop.
     pub fn is_cancelled(&self) -> bool {
         // A running job has not finished its stream, so `Ok(None)` cannot occur.
         matches!(

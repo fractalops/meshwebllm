@@ -31,7 +31,10 @@ pub const STALE_AFTER: Duration = Duration::from_secs(30);
 pub const EXPIRE_AFTER: Duration = Duration::from_secs(45);
 /// Time after a worker leaves or expires during which its old announcements
 /// are still rejected as replays. After this, a replayed announcement can show
-/// the worker again until it expires.
+/// the worker again until it expires. That grants no new capability: any
+/// topic member can already announce unreachable workers under fresh keys.
+/// Rejecting old sender timestamps instead would make membership depend on
+/// peers' clocks.
 pub const FORGET_AFTER: Duration = Duration::from_secs(10 * 60);
 /// Largest encoded announcement a node accepts, in bytes.
 pub const MAX_ANNOUNCEMENT: usize = 2048;

@@ -213,6 +213,15 @@ async fn queue_skips_jobs_whose_client_left() {
             .await
             .map(|_| text)
     });
+    // Both requests are queued before the worker looks at either. The stop for
+    // the first stream was sent before the second request on this connection.
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while queue.waiting() < 2 {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
     let job = tokio::time::timeout(Duration::from_secs(5), queue.next())
         .await
         .unwrap()
