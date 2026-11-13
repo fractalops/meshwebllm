@@ -22,11 +22,19 @@ An invited browser gets the manifest and graph, follows dependencies for layers 
 
 The host runs layers 0–14 and sends two boundary tensors to the helper for each forward pass. The helper runs layers 15–29, selects the next token and returns it. Each stage keeps its own 30 KV tensors on its GPU. The host tokenizes the conversation and decodes streamed output. Whole-model mode uses 60 GPU KV tensors. Runtime checks require GPU dispatches and the expected cache count.
 
+The whole model and the final stage insert a `Slice` before the output head, so each forward pass returns logits for the last position only (`[1, 1, 49152]`). The published export would otherwise produce and read back one row per prompt token: about 177 MB for a 900-token prompt. The weights and chunk hashes are unchanged; only the locally assembled graph differs. On CPU (onnxruntime-web wasm in Node) this produced bit-identical last-position logits and the same greedy tokens, and a 400-token prefill took 2.6 s instead of 3.2 s. It has not yet been measured on WebGPU.
+
+Sampling keeps the 40 highest logits in one pass over the vocabulary. The earlier full sort cost 14.7 ms per token at temperature 0.7 under Node on an Apple M-series Mac; the single pass costs 0.3 ms and selects the same token.
+
 ## Trust and lifecycle
 
 An invitation carries a coordinator address, a manifest hash and a random enrollment secret in its URL fragment. Join requires an explicit click. The coordinator binds the first valid join to the authenticated iroh endpoint identity. The helper accepts stage commands only from the authenticated coordinator. Generation IDs and sequential step numbers protect the active KV state from overlapping or out-of-order commands.
 
 Content hashes establish transfer integrity, not publisher trust. A peer can claim the pinned model's identity in its manifest; this preview does not independently reconstruct and authenticate every received weight against a signed upstream manifest. Pair only trusted devices. A model worker can read prompts it processes, and a stage receives tokens and activations. Transport encryption is not private inference.
+
+A completion client must send its whole request within 30 seconds of opening a stream, and request bodies are allocated as bytes arrive rather than from the length prefix. A queued job whose client has stopped reading is dropped before it reaches the model. While a job runs, `Job.cancelled()` resolves `true` as soon as its client leaves, without waiting for the next chunk to fail.
+
+Rosters keep the newest timestamp of a departed worker for 10 minutes to reject replays, then forget it so that per-tab identities do not accumulate.
 
 Closing or stopping a contribution ends its session. Pause stops accepting work and cancels current generation. An unavailable partner removes the team from routing. Recovery uses a new team and invitation; verified cached weights survive. Automatic stage failover is not implemented.
 
