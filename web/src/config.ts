@@ -12,8 +12,7 @@ export const MODELS: ModelSpec[] = [
   {
     id: SMOL_ID,
     name: "SmolLM2 · 135M",
-    description:
-      "A small model for quick experiments. Run it here or split its layers with a friend.",
+    description: "For short prompts and shared-compute experiments.",
     downloadMB: 182,
     runtime: "onnx",
     shared: true,
@@ -21,7 +20,7 @@ export const MODELS: ModelSpec[] = [
   {
     id: "SmolLM2-360M-Instruct-q4f16_1-MLC",
     name: "SmolLM2 · 360M",
-    description: "A lightweight chat model running on one browser GPU.",
+    description: "A small chat model. Runs on one browser GPU.",
     downloadMB: 210,
     runtime: "webllm",
     shared: false,
@@ -30,7 +29,7 @@ export const MODELS: ModelSpec[] = [
     id: "Qwen3-4B-q4f16_1-MLC",
     name: "Qwen3 · 4B",
     description:
-      "More capable, with a larger download. Needs about 3.4 GB of GPU memory.",
+      "A larger model for longer replies. Sharing needs about 3.4 GB of GPU memory.",
     downloadMB: 2280,
     runtime: "webllm",
     shared: false,
