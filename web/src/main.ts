@@ -247,12 +247,19 @@ $("dismissInvite").onclick = () => {
   $("inviteBanner").hidden = true;
   history.replaceState(null, "", location.pathname + location.search);
 };
-try {
-  invitation = readInvitation(location.hash);
-  $("inviteBanner").hidden = !invitation;
-} catch (e) {
-  toast(e instanceof Error ? e.message : String(e));
+function loadInvitation() {
+  invitation = undefined;
+  $("inviteBanner").hidden = true;
+  try {
+    invitation = readInvitation(location.hash);
+    $("inviteBanner").hidden = !invitation;
+  } catch (e) {
+    toast(e instanceof Error ? e.message : String(e));
+  }
 }
+window.addEventListener("hashchange", loadInvitation);
+loadInvitation();
+
 void (async () => {
   try {
     gpu = await checkGpu();
