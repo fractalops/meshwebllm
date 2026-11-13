@@ -58,11 +58,12 @@ Browser verification on an Apple Metal GPU, 2026-11-13:
 - Whole ONNX chat generated “The capital of France is Paris.” with real WebGPU execution.
 - The integrated shared UI transferred 148.9 MB to an empty, separate-origin browser cache through iroh-blobs and generated the same answer. This run used a local transport relay; inference remained in the two browsers.
 - Leaving the helper immediately made the team unavailable for new chat requests.
+- Full public-relay weight delivery completed across an interrupted and resumed transfer. The new team reused about 34 MB of saved chunks, fetched the remaining weights from its browser host through iroh-blobs, assembled its stage and became ready.
 - A fresh public-relay team reused 148.9 MB from the helper cache with 0.0 MB received. The production coordinator and helper generated the Paris answer in 12.9 seconds using default public iroh relays.
 - Stopping an in-flight shared reply left both GPU stages reusable; a new chat produced the Paris answer again.
 - The native CLI requested and received the same answer from that two-browser team over the unchanged completion protocol.
 - The optimized production bundle downloaded the original model from its pinned upstream URL, connected to the public pool and generated the same answer over the normal iroh completion path.
-- The WebLLM 360M adapter downloaded its weights without Cache.add(), generated the Paris answer and supported immediate cancellation.
+- The WebLLM 360M adapter downloaded its weights without Cache.add(), generated the Paris answer, and passed stop/restart plus pause/resume during live generation. Pending worker calls are cancelled explicitly when their worker is terminated.
 - The chat view was visually checked at a 390 × 844 mobile viewport.
 
 The original numerical comparisons, GPU-dispatch evidence and token sequences remain in [the experiment results](../experiments/layer-split/README.md).

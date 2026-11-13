@@ -59,7 +59,7 @@ Set `MESHWEBLLM_LOG` to a tracing filter, for example `MESHWEBLLM_LOG=meshwebllm
 
 Choose a model and chat. Routing uses only non-stale workers advertising that exact model; idle workers are preferred, followed by short queues. It tries up to three candidates before any text arrives and never silently retries a partial answer. Stop cancels the response. Only completed turns are included in follow-ups; changing models starts a new conversation.
 
-**Contribute compute** offers whole-model execution, and a two-browser shared preview for SmolLM2 135M. GPU checks run before downloading. Downloads report progress and verified caches survive visits. Stop during preparation cancels loading. Pause interrupts active generation and rejects new jobs; resume makes the existing session available again. Stop ends the contribution and releases its GPU worker.
+**Contribute compute** offers whole-model execution, and a two-browser shared preview for SmolLM2 135M. GPU checks run before downloading. Downloads report progress and caches survive visits. ONNX peer weights are content-verified; WebLLM shards are length-checked. Stop during preparation cancels loading. Pause interrupts active generation and rejects new jobs; resume makes the existing session available again. Stop ends the contribution and releases its GPU worker.
 
 The **Network** view shows workers, their models, status, adapter, completed requests and reported speed. A shared team is advertised as one worker only when both stages are ready. An invited stage does not advertise a complete model. Counts and speed are self-reported.
 
