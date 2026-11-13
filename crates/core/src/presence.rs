@@ -8,7 +8,10 @@
 //!
 //! Gossip messages carry no author, so each message is signed with the
 //! sender's endpoint key. The roster uses the receiver's clock for timeouts.
-//! The sender's timestamp only orders messages from the same sender.
+//! The sender's timestamp only orders messages from the same sender. The
+//! roster remembers the newest timestamp of a departed worker for
+//! [`FORGET_AFTER`], then forgets it so that per-tab identities do not
+//! accumulate forever.
 
 use std::{collections::HashMap, time::Duration};
 
@@ -26,6 +29,10 @@ pub const HEARTBEAT: Duration = Duration::from_secs(10);
 pub const STALE_AFTER: Duration = Duration::from_secs(30);
 /// Silence after which a worker is removed.
 pub const EXPIRE_AFTER: Duration = Duration::from_secs(45);
+/// Time after a worker leaves or expires during which its old announcements
+/// are still rejected as replays. After this, a replayed announcement can show
+/// the worker again until it expires.
+pub const FORGET_AFTER: Duration = Duration::from_secs(10 * 60);
 /// Largest encoded announcement a node accepts, in bytes.
 pub const MAX_ANNOUNCEMENT: usize = 2048;
 
@@ -181,6 +188,8 @@ pub struct Roster {
     members: HashMap<EndpointId, Member>,
     // Keep sequence floors after leave and expiry to reject old packets.
     timestamps: HashMap<EndpointId, u64>,
+    // Receiver time at which a sender without a member entry got its floor.
+    departed: HashMap<EndpointId, u64>,
     revision: u64,
 }
 
@@ -202,10 +211,12 @@ impl Roster {
         self.timestamps.insert(msg.from, msg.timestamp_ms);
         self.revision += 1;
         match msg.announcement {
-            Announcement::Leave => self
-                .members
-                .remove(&msg.from)
-                .map(|_| RosterEvent::Left(msg.from)),
+            Announcement::Leave => {
+                self.departed.insert(msg.from, now_ms);
+                self.members
+                    .remove(&msg.from)
+                    .map(|_| RosterEvent::Left(msg.from))
+            }
             Announcement::Hello => None,
             Announcement::Worker(info) => match self.members.get_mut(&msg.from) {
                 Some(m) => {
@@ -214,6 +225,7 @@ impl Roster {
                     None
                 }
                 None => {
+                    self.departed.remove(&msg.from);
                     self.members.insert(
                         msg.from,
                         Member {
@@ -230,12 +242,15 @@ impl Roster {
     }
 
     /// Removes expired members. Reports members that became stale since
-    /// `previous_ms` and members that expired.
+    /// `previous_ms` and members that expired. Forgets the replay floors of
+    /// workers that departed at least [`FORGET_AFTER`] ago.
     pub fn sweep(&mut self, previous_ms: u64, now_ms: u64) -> Vec<RosterEvent> {
         let mut events = Vec::new();
+        let departed = &mut self.departed;
         self.members.retain(|id, m| {
             if m.silence(now_ms) >= EXPIRE_AFTER {
                 events.push(RosterEvent::Expired(*id));
+                departed.insert(*id, now_ms);
                 false
             } else {
                 if m.is_stale(now_ms) && !m.is_stale(previous_ms) {
@@ -243,6 +258,15 @@ impl Roster {
                 }
                 true
             }
+        });
+        let forget = FORGET_AFTER.as_millis() as u64;
+        let timestamps = &mut self.timestamps;
+        self.departed.retain(|id, at| {
+            let keep = now_ms.saturating_sub(*at) < forget;
+            if !keep {
+                timestamps.remove(id);
+            }
+            keep
         });
         events
     }
@@ -331,6 +355,41 @@ mod tests {
             r.apply(received(&key, 13, worker()), 50_002),
             Some(RosterEvent::Joined(key.public()))
         );
+    }
+
+    #[test]
+    fn departed_identities_are_forgotten_after_the_replay_window() {
+        let forget = FORGET_AFTER.as_millis() as u64;
+        let mut r = Roster::new();
+        let worker = || Announcement::Worker(info(WorkerState::Idle, 1.0, 0));
+        let (left, expired, live) = (
+            SecretKey::generate(),
+            SecretKey::generate(),
+            SecretKey::generate(),
+        );
+        r.apply(received(&left, 1, worker()), 0);
+        r.apply(received(&left, 2, Announcement::Leave), 0);
+        r.apply(received(&expired, 1, worker()), 0);
+        r.sweep(0, 45_000);
+        assert_eq!(r.timestamps.len(), 2, "floors survive inside the window");
+        assert_eq!(r.apply(received(&left, 1, worker()), 45_000), None);
+        // A live worker keeps its floor however long it stays.
+        let mut t = 0;
+        while t <= 45_000 + forget {
+            r.apply(received(&live, t + 1, worker()), t);
+            r.sweep(t, t + 10_000);
+            t += 10_000;
+        }
+        r.sweep(t, 45_000 + forget);
+        assert_eq!(r.timestamps.len(), 1);
+        assert!(r.departed.is_empty());
+        assert!(r.timestamps.contains_key(&live.public()));
+        // A worker that comes back is a member again and is not forgotten.
+        r.apply(received(&left, 3, worker()), 45_000 + forget);
+        assert!(r.get(&left.public()).is_some());
+        assert!(!r.departed.contains_key(&left.public()));
+        r.sweep(45_000 + forget, 45_000 + forget + 1_000);
+        assert!(r.timestamps.contains_key(&left.public()));
     }
 
     #[test]
