@@ -1,6 +1,7 @@
 import { Tokenizer } from "@huggingface/tokenizers";
 import { SMOL_ID } from "../config";
 import { loadSource, sourceFile } from "./assets";
+import { wholeModel } from "./partition.js";
 import { GpuSession } from "./gpu";
 import { generateText, selectToken } from "./generation";
 import { ModelStore } from "./store";
@@ -36,7 +37,7 @@ export async function createOnnx(options: RuntimeOptions): Promise<Runtime> {
           `present.${i}.value`,
         ]).flat(),
       ],
-      bytes,
+      wholeModel(bytes),
     );
     options.signal.throwIfAborted();
     options.signal.removeEventListener("abort", abort);

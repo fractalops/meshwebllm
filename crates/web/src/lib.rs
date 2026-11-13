@@ -335,6 +335,18 @@ impl Job {
         to_js(req)
     }
 
+    /// Resolves to `true` when the client stops reading or disconnects while
+    /// this job is still open, and to `false` once the job has ended. Use it to
+    /// stop generation without waiting for the next `chunk` to fail.
+    pub async fn cancelled(&self) -> bool {
+        let wait = match self.0.lock().await.as_ref() {
+            Some(job) => job.cancelled(),
+            None => return false,
+        };
+        wait.await;
+        self.0.lock().await.is_some()
+    }
+
     pub async fn chunk(&self, text: String) -> Result<(), JsError> {
         let mut guard = self.0.lock().await;
         let job = guard.as_mut().ok_or_else(|| js_err("job is finished"))?;

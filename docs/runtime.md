@@ -22,11 +22,19 @@ An invited browser gets the manifest and graph, follows dependencies for layers 
 
 The host runs layers 0–14 and sends two boundary tensors to the helper for each forward pass. The helper runs layers 15–29, selects the next token and returns it. Each stage keeps its own 30 KV tensors on its GPU. The host tokenizes the conversation and decodes streamed output. Whole-model mode uses 60 GPU KV tensors. Runtime checks require GPU dispatches and the expected cache count.
 
+The whole model and the final stage insert a `Slice` before the output head, so each forward pass returns logits for the last position only (`[1, 1, 49152]`). The published export would otherwise produce and read back one row per prompt token: about 177 MB for a 900-token prompt. The weights and chunk hashes are unchanged; only the locally assembled graph differs. On CPU (onnxruntime-web wasm in Node) this produced bit-identical last-position logits and the same greedy tokens, and a 400-token prefill took 2.6 s instead of 3.2 s. A WebGPU speedup has not been measured. The optimized graph has passed whole-model and two-browser GPU inference checks.
+
+Sampling keeps the 40 highest logits in one pass over the vocabulary. The earlier full sort cost 14.7 ms per token at temperature 0.7 under Node on an Apple M-series Mac; the single pass costs 0.3 ms and selects the same token.
+
 ## Trust and lifecycle
 
 An invitation carries a coordinator address, a manifest hash and a random enrollment secret in its URL fragment. Join requires an explicit click. The coordinator binds the first valid join to the authenticated iroh endpoint identity. The helper accepts stage commands only from the authenticated coordinator. Generation IDs and sequential step numbers protect the active KV state from overlapping or out-of-order commands.
 
 Content hashes establish transfer integrity, not publisher trust. A peer can claim the pinned model's identity in its manifest; this preview does not independently reconstruct and authenticate every received weight against a signed upstream manifest. Pair only trusted devices. A model worker can read prompts it processes, and a stage receives tokens and activations. Transport encryption is not private inference.
+
+A completion client must send its whole request within 30 seconds of opening a stream, and request bodies are allocated as bytes arrive rather than from the length prefix. A queued job whose client has stopped reading is dropped before it reaches the model. While a job runs, `Job.cancelled()` resolves `true` as soon as its client leaves, without waiting for the next chunk to fail.
+
+Rosters keep the newest timestamp of a departed worker for 10 minutes to reject replays, then forget it so that per-tab identities do not accumulate.
 
 Closing or stopping a contribution ends its session. Pause stops accepting work and cancels current generation. An unavailable partner removes the team from routing. Recovery uses a new team and invitation; verified cached weights survive. Automatic stage failover is not implemented.
 
@@ -54,6 +62,8 @@ cargo test --workspace --exclude meshwebllm-web
 Without the fixture, the tokenizer and model-partition integration tests explicitly skip. CI downloads the pinned fixture and runs them. The tests cover graph dependency partitions at layers 1, 15 and 29, reassembly, malformed packets, stage authorization/sequence, tokenizer output/EOS/context limits, model-aware routing, retry boundaries, stream cancellation and interrupted cache downloads.
 
 Browser verification on an Apple Metal GPU, 2026-11-13:
+
+- The 0.3.0 output-head optimization generated a complete seven-token Paris reply across two in-app browser GPU stages over public iroh relays (12.5 s). After stopping a streamed reply, the same team answered again (6.6 s). The host used the verified local source fixture, and the helper reused 148.9 MB of verified chunks. The user separately verified the optimized whole-model path on their desktop.
 
 - Whole ONNX chat generated “The capital of France is Paris.” with real WebGPU execution.
 - The integrated shared UI transferred 148.9 MB to an empty, separate-origin browser cache through iroh-blobs and generated the same answer. This run used a local transport relay; inference remained in the two browsers.

@@ -172,3 +172,98 @@ async fn dropping_a_completion_cancels_only_its_stream() {
         .unwrap();
     assert_eq!(done.model, "echo");
 }
+
+#[tokio::test]
+async fn stalled_request_is_dropped_after_the_deadline() {
+    let (handler, _queue) = job_queue(4);
+    let handler = handler.with_request_timeout(Duration::from_millis(200));
+    let ep = local_endpoint(vec![INFER_ALPN.to_vec()]).await;
+    let router = Router::builder(ep).accept(INFER_ALPN, handler).spawn();
+    let (_c, conn) = connect(&router).await;
+    let (mut send, mut recv) = conn.open_bi().await.unwrap();
+    // A length prefix with no body: the worker must not wait for it forever.
+    send.write_all(&64u32.to_be_bytes()).await.unwrap();
+    let res = tokio::time::timeout(Duration::from_secs(5), recv.read_to_end(1024))
+        .await
+        .expect("the worker must give up on a stalled request");
+    assert!(res.is_err(), "{res:?}");
+}
+
+#[tokio::test]
+async fn queue_skips_jobs_whose_client_left() {
+    let (router, queue) = worker(4).await;
+    let (_c, conn) = connect(&router).await;
+    let abandoned = CompletionStream::open(&conn, &Request::user("gone"))
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while queue.waiting() == 0 {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    drop(abandoned);
+    // Give the STOP_SENDING frame time to arrive.
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let kept = conn.clone();
+    let live = tokio::spawn(async move {
+        let mut text = String::new();
+        ask(&kept, &Request::user("still here"), |t| text.push_str(t))
+            .await
+            .map(|_| text)
+    });
+    // Both requests are queued before the worker looks at either. The stop for
+    // the first stream was sent before the second request on this connection.
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while queue.waiting() < 2 {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let job = tokio::time::timeout(Duration::from_secs(5), queue.next())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(job.request.messages[0].content, "still here");
+    let mut job = job;
+    job.chunk("ok".into()).await.unwrap();
+    job.done("echo".into(), 1, 1).await.unwrap();
+    assert_eq!(live.await.unwrap().unwrap(), "ok");
+}
+
+#[tokio::test]
+async fn running_job_observes_client_cancellation() {
+    let (router, queue) = worker(4).await;
+    let (_c, conn) = connect(&router).await;
+    let stream = CompletionStream::open(&conn, &Request::user("cancel"))
+        .await
+        .unwrap();
+    let job = queue.next().await.unwrap();
+    assert!(!job.is_cancelled());
+    let cancelled = job.cancelled();
+    drop(stream);
+    tokio::time::timeout(Duration::from_secs(5), cancelled)
+        .await
+        .expect("cancellation must be observed without writing");
+    assert!(job.is_cancelled());
+}
+
+#[tokio::test]
+async fn cancellation_future_ends_after_a_delivered_reply() {
+    let (router, queue) = worker(4).await;
+    let (_c, conn) = connect(&router).await;
+    let reply = tokio::spawn({
+        let conn = conn.clone();
+        async move { ask(&conn, &Request::user("hi"), |_| {}).await }
+    });
+    let job = queue.next().await.unwrap();
+    let cancelled = job.cancelled();
+    job.done("echo".into(), 1, 0).await.unwrap();
+    reply.await.unwrap().unwrap();
+    // Holders such as the browser binding must not keep a pending wait forever.
+    tokio::time::timeout(Duration::from_secs(5), cancelled)
+        .await
+        .expect("a finished stream resolves once acknowledged or stopped");
+}

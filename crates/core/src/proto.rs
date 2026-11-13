@@ -16,6 +16,9 @@ pub const INFER_ALPN: &[u8] = b"meshwebllm/infer/0";
 /// Largest frame a peer accepts, in bytes.
 pub const MAX_FRAME: usize = 1 << 20;
 
+/// Bytes reserved before a frame body arrives.
+const INITIAL_BODY_CAPACITY: usize = 16 * 1024;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Role {
     System,
@@ -120,8 +123,13 @@ where
     if len > MAX_FRAME {
         return Err(FrameError::TooLarge(len));
     }
-    let mut body = vec![0u8; len];
-    r.read_exact(&mut body).await?;
+    // Grow with the received bytes. A length prefix alone must not reserve
+    // up to MAX_FRAME for a peer that never sends the body.
+    let mut body = Vec::with_capacity(len.min(INITIAL_BODY_CAPACITY));
+    r.take(len as u64).read_to_end(&mut body).await?;
+    if body.len() != len {
+        return Err(std::io::Error::from(std::io::ErrorKind::UnexpectedEof).into());
+    }
     Ok(Some(postcard::from_bytes(&body)?))
 }
 

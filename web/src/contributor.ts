@@ -226,6 +226,12 @@ export class Contributor {
     }
     const signal = new AbortController();
     this.generation = signal;
+    void job
+      .cancelled()
+      .then((cancelled) => {
+        if (cancelled) signal.abort();
+      })
+      .catch(() => {});
     const started = performance.now();
     this.update({ phase: "busy", message: "Answering a request" });
     try {

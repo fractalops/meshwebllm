@@ -165,6 +165,7 @@ export function planStage(graphBytes, manifest, role, split = 15) {
   ]);
   graph.valueInfo = graph.valueInfo.filter((v) => values.has(v.name));
   graph.name = `libgrid-${role}-${split}`;
+  if (role === "second") lastPositionLogits(model);
   return {
     model,
     role,
@@ -200,6 +201,80 @@ export async function assembleStage(plan, get, progress = () => {}) {
   }
   const output = onnx.ModelProto.encode(plan.model).finish();
   return output;
+}
+
+const LM_HEAD_INPUT = "/model/layers.30/final_norm_layernorm/output_0";
+const LAST_POSITION = "/meshwebllm/last_position/output_0";
+
+/**
+ * Computes `logits` for the last input position only. Generation reads only
+ * that row, but the published export runs the output head over every prompt
+ * token and returns `[1, n, vocab]`. A 900-token prompt then allocates and
+ * reads back about 177 MB. Applies to whole models and to the final stage.
+ */
+export function lastPositionLogits(model) {
+  const graph = model.graph;
+  const head = graph.node.find((n) => n.output[0] === "logits");
+  if (
+    !head ||
+    head.opType !== "MatMul" ||
+    head.input[0] !== LM_HEAD_INPUT ||
+    graph.node.some((n) => n.output.includes(LAST_POSITION))
+  )
+    throw new Error("Unsupported output head");
+  const int64 = (name, value) =>
+    onnx.TensorProto.fromObject({
+      name,
+      dataType: onnx.TensorProto.DataType.INT64,
+      dims: [1],
+      int64Data: [value],
+    });
+  // Slice along the sequence axis from -1 to the end. Constants are nodes, not
+  // initializers, so content-addressed weight manifests are unchanged.
+  const constant = (name, value) =>
+    onnx.NodeProto.fromObject({
+      opType: "Constant",
+      name: `${name}/Constant`,
+      output: [name],
+      attribute: [
+        {
+          name: "value",
+          type: onnx.AttributeProto.AttributeType.TENSOR,
+          t: int64(name, value),
+        },
+      ],
+    });
+  const names = ["starts", "ends", "axes"].map(
+    (n) => `/meshwebllm/last_position/${n}`,
+  );
+  const slice = onnx.NodeProto.fromObject({
+    opType: "Slice",
+    name: "/meshwebllm/last_position/Slice",
+    input: [LM_HEAD_INPUT, ...names],
+    output: [LAST_POSITION],
+  });
+  const at = graph.node.indexOf(head);
+  graph.node.splice(
+    at,
+    0,
+    constant(names[0], -1),
+    constant(names[1], Number.MAX_SAFE_INTEGER),
+    constant(names[2], 1),
+    slice,
+  );
+  head.input[0] = LAST_POSITION;
+  const logits = graph.output.find((v) => v.name === "logits");
+  const dims = logits?.type?.tensorType?.shape?.dim;
+  if (dims?.length === 3)
+    dims[1] = onnx.TensorShapeProto.Dimension.fromObject({ dimValue: 1 });
+  return model;
+}
+
+/** The verified whole model, re-encoded to return only the last logits row. */
+export function wholeModel(bytes) {
+  return onnx.ModelProto.encode(
+    lastPositionLogits(onnx.ModelProto.decode(bytes)),
+  ).finish();
 }
 
 // Validate the invitation's metadata before allocating buffers or walking a graph.

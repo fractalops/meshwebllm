@@ -59,9 +59,9 @@ Set `MESHWEBLLM_LOG` to a tracing filter, for example `MESHWEBLLM_LOG=meshwebllm
 
 Choose a model and chat. Routing uses only non-stale workers advertising that exact model; idle workers are preferred, followed by short queues. It tries up to three candidates before any text arrives and never silently retries a partial answer. Stop cancels the response. Only completed turns are included in follow-ups; changing models starts a new conversation.
 
-**Contribute compute** offers whole-model execution, and a two-browser shared preview for SmolLM2 135M. GPU checks run before downloading. Downloads report progress and caches survive visits. ONNX peer weights are content-verified; WebLLM shards are length-checked. Stop during preparation cancels loading. Pause interrupts active generation and rejects new jobs; resume makes the existing session available again. Stop ends the contribution and releases its GPU worker.
+**Share compute** offers whole-model execution, and a two-browser shared preview for SmolLM2 135M. GPU checks run before downloading. Downloads report progress and caches survive visits. ONNX peer weights are content-verified; WebLLM shards are length-checked. Stop during preparation cancels loading. Pause interrupts active generation and rejects new jobs; resume makes the existing session available again. Stop ends the contribution and releases its GPU worker.
 
-The **Network** view shows workers, their models, status, adapter, completed requests and reported speed. A shared team is advertised as one worker only when both stages are ready. An invited stage does not advertise a complete model. Counts and speed are self-reported.
+The **Network** dashboard shows availability, active and queued requests, reported completions and token totals, and a searchable worker table. The request chart and activity log record observations from the current tab session. Totals describe workers currently in view; they are not lifetime pool counters. Connection details show the local endpoint and pool. A shared team is advertised as one worker only when both stages are ready. An invited stage does not advertise a complete model. Worker availability is self-reported.
 
 | Query | Description |
 | --- | --- |
@@ -78,7 +78,7 @@ The ONNX preview uses the pinned SmolLM2 tokenizer and chat template, EOS stoppi
 - Members join a gossip topic derived from the pool name.
 - An idle worker sends a signed heartbeat every 10 seconds. Status changes wake the sender. Worker announcements are limited to one every 2 seconds, including replies to new members. Each message is at most 2 KB.
 - Contributions report queue state and counters once a second. The page reads the roster when the Wasm node signals a change.
-- Replayed and reordered status and leave messages are ignored. Sequence floors remain after a worker leaves or expires.
+- Replayed and reordered status and leave messages are ignored. Sequence floors remain for ten minutes after a worker leaves or expires; a replay after that window can briefly reappear until expiry.
 - Members check each signature against the sender's endpoint ID and drop messages that fail.
 - A worker that sends nothing for 30 seconds is shown as stale. After 45 seconds it is removed.
 - A worker that leaves on purpose sends a leave message and is removed at once.

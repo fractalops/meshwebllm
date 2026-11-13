@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { createReadStream, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { browserNetworkPlugin } from "./build/browser-network.mjs";
@@ -12,10 +13,11 @@ export default defineConfig({
     hmr: false,
     watch: null,
     host: "127.0.0.1",
-    port: 5175,
+    port: 5178,
     strictPort: true,
   },
   plugins: [
+    svelte(),
     browserNetworkPlugin(),
     {
       name: "local-model-fixture",

@@ -57,6 +57,53 @@ test("sampling respects precise mode and rejects invalid logits", () => {
   );
 });
 
+// The previous full-sort sampler. The single-pass sampler must choose the same token.
+function sortedTopK(logits, temperature, random) {
+  const top = Array.from(logits, (score, id) => ({ score, id }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 40);
+  const weights = top.map((t) =>
+    Math.exp((t.score - top[0].score) / temperature),
+  );
+  let n = random() * weights.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < top.length; i++) {
+    n -= weights[i];
+    if (n <= 0) return top[i].id;
+  }
+  return top.at(-1).id;
+}
+test("top-k sampling matches the full-sort reference, including ties", () => {
+  let seed = 7;
+  const next = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  for (const [vocab, levels] of [
+    [49152, 0],
+    [3, 0],
+    [41, 0],
+    [500, 6],
+    [2000, 50],
+  ]) {
+    for (let trial = 0; trial < 20; trial++) {
+      // Quantized scores create many equal logits, which exercises stable tie order.
+      const logits = Float32Array.from({ length: vocab }, () =>
+        levels ? Math.floor(next() * levels) : next() * 30 - 15,
+      );
+      for (const temperature of [0.05, 0.7, 2]) {
+        const draws = [0, 1, next(), next(), next()];
+        for (const d of draws)
+          assert.equal(
+            selectToken(logits, temperature, () => d),
+            sortedTopK(logits, temperature, () => d),
+            `vocab ${vocab}, temperature ${temperature}, draw ${d}`,
+          );
+      }
+    }
+  }
+  assert.throws(
+    () => selectToken(new Float32Array([1, -Infinity, 2]), 0.7),
+    /invalid logits/,
+  );
+});
+
 test("generation decodes real tokenizer output, stops at EOS and honors cancellation", async (t) => {
   let json, config;
   try {

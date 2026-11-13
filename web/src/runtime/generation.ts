@@ -40,18 +40,35 @@ export function selectToken(
   }
   if (temperature === 0) return best;
   // Top-k sampling bounds the tail; temperature is applied in log-space.
-  const top = Array.from(logits, (score, id) => ({ score, id }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 40);
-  const weights = top.map((t) =>
-    Math.exp((t.score - top[0].score) / temperature),
+  const top = topK(logits, TOP_K);
+  const weights = top.map((id) =>
+    Math.exp((logits[id] - logits[top[0]]) / temperature),
   );
   let n = random() * weights.reduce((a, b) => a + b, 0);
   for (let i = 0; i < top.length; i++) {
     n -= weights[i];
-    if (n <= 0) return top[i].id;
+    if (n <= 0) return top[i];
   }
-  return top.at(-1)!.id;
+  return top.at(-1)!;
+}
+const TOP_K = 40;
+/**
+ * Token IDs of the `k` highest logits, best first; equal logits keep ascending ID
+ * order. One pass with a small sorted window avoids sorting the whole vocabulary
+ * on every token.
+ */
+function topK(logits: Float32Array, k: number): number[] {
+  const ids: number[] = [];
+  for (let id = 0; id < logits.length; id++) {
+    const score = logits[id];
+    if (ids.length === k && score <= logits[ids[k - 1]]) continue;
+    // A later ID with an equal score ranks after the earlier one.
+    let at = ids.length;
+    while (at > 0 && logits[ids[at - 1]] < score) at--;
+    ids.splice(at, 0, id);
+    if (ids.length > k) ids.pop();
+  }
+  return ids;
 }
 /** Validate before starting either GPU stage so a bad request cannot disable a team. */
 export function prepareGeneration(
