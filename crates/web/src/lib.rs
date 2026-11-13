@@ -1,5 +1,8 @@
 //! Browser bindings. The page runs the model. This crate runs the network.
 
+#[cfg(feature = "layer-split-experiment")]
+mod experiment;
+
 use std::sync::Arc;
 
 use iroh::protocol::Router;

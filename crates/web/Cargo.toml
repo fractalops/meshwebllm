@@ -8,10 +8,14 @@ publish = false
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+layer-split-experiment = ["dep:iroh-blobs"]
+
 [dependencies]
 console_error_panic_hook = "0.1"
 getrandom = { version = "0.3", features = ["wasm_js"] }
 iroh.workspace = true
+iroh-blobs = { version = "=0.104.1", default-features = false, optional = true }
 iroh-gossip.workspace = true
 meshwebllm-core.workspace = true
 n0-future.workspace = true

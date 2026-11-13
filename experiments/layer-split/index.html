@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  />
+  <title>MeshWebLLM · Layer split experiment</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: ui-monospace, monospace;
+      background: #101414;
+      color: #dde5e2;
+    }
+    body {
+      max-width: 1100px;
+      margin: 64px auto;
+      padding: 0 28px;
+    }
+    small {
+      color: #8bad9e;
+    }
+    h1 {
+      font: 500 36px system-ui;
+    }
+    p {
+      line-height: 1.6;
+      color: #a9bab2;
+    }
+    button,
+    select {
+      background: #172d25;
+      border: 1px solid #466c5b;
+      color: #d6f7e2;
+      padding: 13px 18px;
+      border-radius: 8px;
+      font: inherit;
+      margin: 8px 8px 8px 0;
+    }
+    button:disabled {
+      opacity: 0.4;
+    }
+    pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      background: #171d1a;
+      border: 1px solid #2a3c32;
+      border-radius: 10px;
+      padding: 20px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    #log {
+      max-height: 340px;
+      overflow: auto;
+    }
+    .good {
+      color: #b5efc7;
+    }
+    .bad {
+      color: #ffafa8;
+    }
+  </style>
+  <small>MESHWEBLLM / EXPERIMENT</small>
+  <h1>One model. Two browser workers.</h1>
+  <p>
+    SmolLM2 135M · 30 transformer layers · split after layer 15<br />Separate
+    weights and GPU KV caches. Compare every generated token and logit against
+    the full model on this Mac.
+  </p>
+  <label for="transport">Activation transport</label>
+  <select id="transport">
+    <option value="local">Local worker messages</option>
+    <option value="iroh">iroh peers</option>
+  </select>
+  <button id="run">Run correctness experiment</button>
+  <p id="status">
+    Ready. The first run compiles WebGPU shaders and will be slower.
+  </p>
+  <pre id="log">No results yet.</pre>
+  <details>
+    <summary>Machine-readable evidence</summary>
+    <pre id="results"></pre>
+  </details>
+  <script type="module" src="/main.js"></script>
+</html>

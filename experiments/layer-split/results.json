@@ -1,0 +1,1516 @@
+{
+  "scope": "One Mac, one physical Apple GPU, three isolated browser workers (baseline plus two stages). Browser iroh endpoints share the page and use a public relay.",
+  "runtime": "onnxruntime-web 1.23.2, WebGPU; iroh 1.4",
+  "source": {
+    "repo": "HuggingFaceTB/SmolLM2-135M-Instruct",
+    "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+    "file": "onnx/model_q4.onnx",
+    "sha256": "933577110303a2964096d19b6f15d3b4639bef7f99481ac0b61d9f3ad72f392a"
+  },
+  "weights": {
+    "baseline": {
+      "bytes": 182068553,
+      "sha256": "933577110303a2964096d19b6f15d3b4639bef7f99481ac0b61d9f3ad72f392a",
+      "layers": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ],
+      "initializerCount": 486
+    },
+    "first": {
+      "bytes": 148709937,
+      "sha256": "53d8d2cd3c7efc5e366b7fed834b2e4e9eec9a6b5db06312acf8d4695e90bb3a",
+      "layers": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "initializerCount": 245
+    },
+    "second": {
+      "bytes": 148714315,
+      "sha256": "c76325a6c82c47c6799ffbe1a8b375810ab5e24bb0360a7a8cf477abb108747a",
+      "layers": [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ],
+      "initializerCount": 246
+    }
+  },
+  "sharedInitializers": [
+    "/model/constants/TensorProto.INT64/0D/1",
+    "/model/constants/TensorProto.INT64/1D/1",
+    "cos_cache",
+    "model.embed_tokens.weight",
+    "sin_cache"
+  ],
+  "runs": {
+    "local": {
+      "date": "2026-11-12T20:14:27.338Z",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+      "passed": true,
+      "adapters": [
+        {
+          "vendor": "apple",
+          "architecture": "metal-3",
+          "description": ""
+        },
+        {
+          "vendor": "apple",
+          "architecture": "metal-3",
+          "description": ""
+        },
+        {
+          "vendor": "apple",
+          "architecture": "metal-3",
+          "description": ""
+        }
+      ],
+      "checkedSteps": 24,
+      "allLogitsExact": true,
+      "medianDecodeMs": 33.0,
+      "medianBaselineDecodeMs": 24.55000001192093,
+      "decodeActivationBytes": [
+        4608
+      ],
+      "finalGpuDispatches": [
+        14472,
+        7224,
+        7248
+      ],
+      "tests": [
+        {
+          "name": "short",
+          "textBeforeEos": "The capital of France is Paris.",
+          "steps": [
+            {
+              "step": 0,
+              "prefill": true,
+              "inputTokens": 16,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 504,
+              "splitToken": 504,
+              "baselineMs": 182.0999999642372,
+              "baselineSessionMs": 178.89999997615814,
+              "firstMs": 28.5,
+              "secondMs": 26,
+              "splitMs": 58.200000047683716,
+              "boundaryAndSecondMs": 32.89999997615814,
+              "activationBytes": 73728,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                603,
+                301,
+                302
+              ]
+            },
+            {
+              "step": 1,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 3575,
+              "splitToken": 3575,
+              "baselineMs": 41.69999998807907,
+              "baselineSessionMs": 40.69999998807907,
+              "firstMs": 19.19999998807907,
+              "secondMs": 14.800000011920929,
+              "splitMs": 35.19999998807907,
+              "boundaryAndSecondMs": 15.899999976158142,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                1206,
+                602,
+                604
+              ]
+            },
+            {
+              "step": 2,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 282,
+              "splitToken": 282,
+              "baselineMs": 24.30000001192093,
+              "baselineSessionMs": 23.80000001192093,
+              "firstMs": 12,
+              "secondMs": 11.5,
+              "splitMs": 24.099999964237213,
+              "boundaryAndSecondMs": 12.199999988079071,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                1809,
+                903,
+                906
+              ]
+            },
+            {
+              "step": 3,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 4649,
+              "splitToken": 4649,
+              "baselineMs": 21.5,
+              "baselineSessionMs": 20.80000001192093,
+              "firstMs": 36.09999996423721,
+              "secondMs": 14.900000035762787,
+              "splitMs": 52.09999996423721,
+              "boundaryAndSecondMs": 15.900000035762787,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                2412,
+                1204,
+                1208
+              ]
+            },
+            {
+              "step": 4,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 314,
+              "splitToken": 314,
+              "baselineMs": 22.30000001192093,
+              "baselineSessionMs": 21.80000001192093,
+              "firstMs": 10.100000023841858,
+              "secondMs": 11.199999988079071,
+              "splitMs": 22.19999998807907,
+              "boundaryAndSecondMs": 11.800000011920929,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                3015,
+                1505,
+                1510
+              ]
+            },
+            {
+              "step": 5,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 7042,
+              "splitToken": 7042,
+              "baselineMs": 17.399999976158142,
+              "baselineSessionMs": 17,
+              "firstMs": 8.5,
+              "secondMs": 11.199999988079071,
+              "splitMs": 20.5,
+              "boundaryAndSecondMs": 12.199999988079071,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                3618,
+                1806,
+                1812
+              ]
+            },
+            {
+              "step": 6,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 30,
+              "splitToken": 30,
+              "baselineMs": 22.100000023841858,
+              "baselineSessionMs": 21.599999964237213,
+              "firstMs": 9.699999988079071,
+              "secondMs": 21.30000001192093,
+              "splitMs": 79.19999998807907,
+              "boundaryAndSecondMs": 33.5,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                4221,
+                2107,
+                2114
+              ]
+            },
+            {
+              "step": 7,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 2,
+              "splitToken": 2,
+              "baselineMs": 35.60000002384186,
+              "baselineSessionMs": 27.30000001192093,
+              "firstMs": 14.600000023841858,
+              "secondMs": 14.599999964237213,
+              "splitMs": 32.5,
+              "boundaryAndSecondMs": 17.80000001192093,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                4824,
+                2408,
+                2416
+              ]
+            },
+            {
+              "step": 8,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 198,
+              "splitToken": 198,
+              "baselineMs": 33.39999997615814,
+              "baselineSessionMs": 24.80000001192093,
+              "firstMs": 26.80000001192093,
+              "secondMs": 21.899999976158142,
+              "splitMs": 60.5,
+              "boundaryAndSecondMs": 28,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                5427,
+                2709,
+                2718
+              ]
+            },
+            {
+              "step": 9,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 2,
+              "splitToken": 2,
+              "baselineMs": 39.200000047683716,
+              "baselineSessionMs": 35.39999997615814,
+              "firstMs": 17.899999976158142,
+              "secondMs": 22.599999964237213,
+              "splitMs": 63.19999998807907,
+              "boundaryAndSecondMs": 43.59999996423721,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                6030,
+                3010,
+                3020
+              ]
+            },
+            {
+              "step": 10,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 1,
+              "splitToken": 1,
+              "baselineMs": 33.09999996423721,
+              "baselineSessionMs": 17.5,
+              "firstMs": 41.60000002384186,
+              "secondMs": 39.80000001192093,
+              "splitMs": 113.80000001192093,
+              "boundaryAndSecondMs": 62.80000001192093,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                6633,
+                3311,
+                3322
+              ]
+            },
+            {
+              "step": 11,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 9690,
+              "splitToken": 9690,
+              "baselineMs": 56.799999952316284,
+              "baselineSessionMs": 37.69999998807907,
+              "firstMs": 29.5,
+              "secondMs": 25.899999976158142,
+              "splitMs": 76,
+              "boundaryAndSecondMs": 35.80000001192093,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                7236,
+                3612,
+                3624
+              ]
+            }
+          ]
+        },
+        {
+          "name": "longer",
+          "textBeforeEos": "The sky looks blue on a clear day because the amount of",
+          "steps": [
+            {
+              "step": 0,
+              "prefill": true,
+              "inputTokens": 24,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 504,
+              "splitToken": 504,
+              "baselineMs": 66.30000001192093,
+              "baselineSessionMs": 61.5,
+              "firstMs": 22,
+              "secondMs": 24,
+              "splitMs": 57.59999996423721,
+              "boundaryAndSecondMs": 31.30000001192093,
+              "activationBytes": 110592,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                7839,
+                3913,
+                3926
+              ]
+            },
+            {
+              "step": 1,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 6376,
+              "splitToken": 6376,
+              "baselineMs": 28.30000001192093,
+              "baselineSessionMs": 23,
+              "firstMs": 12.799999952316284,
+              "secondMs": 18.599999964237213,
+              "splitMs": 41.5,
+              "boundaryAndSecondMs": 25.5,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                8442,
+                4214,
+                4228
+              ]
+            },
+            {
+              "step": 2,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 5117,
+              "splitToken": 5117,
+              "baselineMs": 24.600000023841858,
+              "baselineSessionMs": 18.69999998807907,
+              "firstMs": 8.600000023841858,
+              "secondMs": 13.199999988079071,
+              "splitMs": 27.80000001192093,
+              "boundaryAndSecondMs": 16.900000035762787,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                9045,
+                4515,
+                4530
+              ]
+            },
+            {
+              "step": 3,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 4461,
+              "splitToken": 4461,
+              "baselineMs": 18.399999976158142,
+              "baselineSessionMs": 15.800000011920929,
+              "firstMs": 26.80000001192093,
+              "secondMs": 16.600000023841858,
+              "splitMs": 50.19999998807907,
+              "boundaryAndSecondMs": 22.30000001192093,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                9648,
+                4816,
+                4832
+              ]
+            },
+            {
+              "step": 4,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 335,
+              "splitToken": 335,
+              "baselineMs": 37.89999997615814,
+              "baselineSessionMs": 28.299999952316284,
+              "firstMs": 15.300000011920929,
+              "secondMs": 14.199999988079071,
+              "splitMs": 36.80000001192093,
+              "boundaryAndSecondMs": 18,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                10251,
+                5117,
+                5134
+              ]
+            },
+            {
+              "step": 5,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 253,
+              "splitToken": 253,
+              "baselineMs": 24.69999998807907,
+              "baselineSessionMs": 22.400000035762787,
+              "firstMs": 9.100000023841858,
+              "secondMs": 10.899999976158142,
+              "splitMs": 21.80000001192093,
+              "boundaryAndSecondMs": 13.199999988079071,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                10854,
+                5418,
+                5436
+              ]
+            },
+            {
+              "step": 6,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 2437,
+              "splitToken": 2437,
+              "baselineMs": 23.80000001192093,
+              "baselineSessionMs": 21.30000001192093,
+              "firstMs": 9.600000023841858,
+              "secondMs": 11.599999964237213,
+              "splitMs": 23.30000001192093,
+              "boundaryAndSecondMs": 13.799999952316284,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                11457,
+                5719,
+                5738
+              ]
+            },
+            {
+              "step": 7,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 1194,
+              "splitToken": 1194,
+              "baselineMs": 28.099999964237213,
+              "baselineSessionMs": 24.30000001192093,
+              "firstMs": 10.300000011920929,
+              "secondMs": 11.100000023841858,
+              "splitMs": 25.100000023841858,
+              "boundaryAndSecondMs": 13.199999988079071,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                12060,
+                6020,
+                6040
+              ]
+            },
+            {
+              "step": 8,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 975,
+              "splitToken": 975,
+              "baselineMs": 22.30000001192093,
+              "baselineSessionMs": 19.69999998807907,
+              "firstMs": 14.300000011920929,
+              "secondMs": 14.600000023841858,
+              "splitMs": 33.5,
+              "boundaryAndSecondMs": 18.400000035762787,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                12663,
+                6321,
+                6342
+              ]
+            },
+            {
+              "step": 9,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 260,
+              "splitToken": 260,
+              "baselineMs": 23.5,
+              "baselineSessionMs": 21.799999952316284,
+              "firstMs": 9.300000011920929,
+              "secondMs": 13.5,
+              "splitMs": 24.5,
+              "boundaryAndSecondMs": 15.299999952316284,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                13266,
+                6622,
+                6644
+              ]
+            },
+            {
+              "step": 10,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 1902,
+              "splitToken": 1902,
+              "baselineMs": 24.5,
+              "baselineSessionMs": 23,
+              "firstMs": 9.099999964237213,
+              "secondMs": 12.599999964237213,
+              "splitMs": 25.19999998807907,
+              "boundaryAndSecondMs": 15.699999988079071,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                13869,
+                6923,
+                6946
+              ]
+            },
+            {
+              "step": 11,
+              "prefill": false,
+              "inputTokens": 1,
+              "maxAbs": 0,
+              "rms": 0,
+              "finite": true,
+              "baselineToken": 282,
+              "splitToken": 282,
+              "baselineMs": 20.100000023841858,
+              "baselineSessionMs": 18,
+              "firstMs": 11.100000023841858,
+              "secondMs": 8.600000023841858,
+              "splitMs": 22,
+              "boundaryAndSecondMs": 11.300000011920929,
+              "activationBytes": 4608,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                14472,
+                7224,
+                7248
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "iroh": {
+      "date": "2026-11-12T20:15:13.739Z",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+      "passed": true,
+      "adapters": [
+        {
+          "vendor": "apple",
+          "architecture": "metal-3",
+          "description": ""
+        },
+        {
+          "vendor": "apple",
+          "architecture": "metal-3",
+          "description": ""
+        },
+        {
+          "vendor": "apple",
+          "architecture": "metal-3",
+          "description": ""
+        }
+      ],
+      "checkedSteps": 24,
+      "allLogitsExact": true,
+      "medianDecodeMs": 613.7000000178814,
+      "medianBaselineDecodeMs": 21.950000017881393,
+      "decodeActivationBytes": [
+        4608
+      ],
+      "finalGpuDispatches": [
+        14472,
+        7224,
+        7248
+      ],
+      "tests": [
+        {
+          "name": "short",
+          "textBeforeEos": "The capital of France is Paris.",
+          "steps": [
+            {
+              "step": 0,
+              "prefill": true,
+              "inputTokens": 16,
+              "exactHashMatch": true,
+              "baselineToken": 504,
+              "splitToken": 504,
+              "finite": true,
+              "baselineMs": 139.89999997615814,
+              "baselineSessionMs": 138.9000000357628,
+              "firstMs": 75.09999996423721,
+              "secondMs": 38.700000047683716,
+              "splitMs": 6384,
+              "boundaryAndSecondMs": 6308.900000035763,
+              "activationBytes": 73728,
+              "requestBytes": 74106,
+              "responseBytes": 223,
+              "roundTripMs": 6307.800000011921,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                603,
+                301,
+                302
+              ]
+            },
+            {
+              "step": 1,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 3575,
+              "splitToken": 3575,
+              "finite": true,
+              "baselineMs": 38.90000003576279,
+              "baselineSessionMs": 38.30000001192093,
+              "firstMs": 13.5,
+              "secondMs": 16.400000035762787,
+              "splitMs": 1399.0999999642372,
+              "boundaryAndSecondMs": 1386,
+              "activationBytes": 4608,
+              "requestBytes": 4924,
+              "responseBytes": 224,
+              "roundTripMs": 1385.3999999761581,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                1206,
+                602,
+                604
+              ]
+            },
+            {
+              "step": 2,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 282,
+              "splitToken": 282,
+              "finite": true,
+              "baselineMs": 27.900000035762787,
+              "baselineSessionMs": 27.600000023841858,
+              "firstMs": 8.800000011920929,
+              "secondMs": 10.099999964237213,
+              "splitMs": 587.5999999642372,
+              "boundaryAndSecondMs": 579.0999999642372,
+              "activationBytes": 4608,
+              "requestBytes": 4925,
+              "responseBytes": 205,
+              "roundTripMs": 578.5,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                1809,
+                903,
+                906
+              ]
+            },
+            {
+              "step": 3,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 4649,
+              "splitToken": 4649,
+              "finite": true,
+              "baselineMs": 23.30000001192093,
+              "baselineSessionMs": 22.900000035762787,
+              "firstMs": 8.300000011920929,
+              "secondMs": 10.700000047683716,
+              "splitMs": 725.5999999642372,
+              "boundaryAndSecondMs": 717.6999999880791,
+              "activationBytes": 4608,
+              "requestBytes": 4924,
+              "responseBytes": 225,
+              "roundTripMs": 716.8999999761581,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                2412,
+                1204,
+                1208
+              ]
+            },
+            {
+              "step": 4,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 314,
+              "splitToken": 314,
+              "finite": true,
+              "baselineMs": 22.599999964237213,
+              "baselineSessionMs": 21.80000001192093,
+              "firstMs": 7.700000047683716,
+              "secondMs": 10.300000011920929,
+              "splitMs": 776.7000000476837,
+              "boundaryAndSecondMs": 769.3999999761581,
+              "activationBytes": 4608,
+              "requestBytes": 4925,
+              "responseBytes": 224,
+              "roundTripMs": 768.7000000476837,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                3015,
+                1505,
+                1510
+              ]
+            },
+            {
+              "step": 5,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 7042,
+              "splitToken": 7042,
+              "finite": true,
+              "baselineMs": 18.30000001192093,
+              "baselineSessionMs": 17.900000035762787,
+              "firstMs": 7.299999952316284,
+              "secondMs": 9.800000011920929,
+              "splitMs": 568.8000000119209,
+              "boundaryAndSecondMs": 561.7999999523163,
+              "activationBytes": 4608,
+              "requestBytes": 4924,
+              "responseBytes": 224,
+              "roundTripMs": 561.1999999880791,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                3618,
+                1806,
+                1812
+              ]
+            },
+            {
+              "step": 6,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 30,
+              "splitToken": 30,
+              "finite": true,
+              "baselineMs": 22.100000023841858,
+              "baselineSessionMs": 21.799999952316284,
+              "firstMs": 6.300000011920929,
+              "secondMs": 10.399999976158142,
+              "splitMs": 625.2999999523163,
+              "boundaryAndSecondMs": 619.6999999880791,
+              "activationBytes": 4608,
+              "requestBytes": 4925,
+              "responseBytes": 223,
+              "roundTripMs": 618.6999999880791,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                4221,
+                2107,
+                2114
+              ]
+            },
+            {
+              "step": 7,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 2,
+              "splitToken": 2,
+              "finite": true,
+              "baselineMs": 22.19999998807907,
+              "baselineSessionMs": 21.69999998807907,
+              "firstMs": 8.799999952316284,
+              "secondMs": 10.5,
+              "splitMs": 693.3000000119209,
+              "boundaryAndSecondMs": 684.6999999880791,
+              "activationBytes": 4608,
+              "requestBytes": 4923,
+              "responseBytes": 208,
+              "roundTripMs": 684.1999999880791,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                4824,
+                2408,
+                2416
+              ]
+            },
+            {
+              "step": 8,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 198,
+              "splitToken": 198,
+              "finite": true,
+              "baselineMs": 20.900000035762787,
+              "baselineSessionMs": 20.5,
+              "firstMs": 8.300000011920929,
+              "secondMs": 10.300000011920929,
+              "splitMs": 584.8000000119209,
+              "boundaryAndSecondMs": 576.8999999761581,
+              "activationBytes": 4608,
+              "requestBytes": 4922,
+              "responseBytes": 224,
+              "roundTripMs": 576.3000000119209,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                5427,
+                2709,
+                2718
+              ]
+            },
+            {
+              "step": 9,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 2,
+              "splitToken": 2,
+              "finite": true,
+              "baselineMs": 19.19999998807907,
+              "baselineSessionMs": 18.80000001192093,
+              "firstMs": 7.299999952316284,
+              "secondMs": 10.699999988079071,
+              "splitMs": 608.3000000119209,
+              "boundaryAndSecondMs": 601.8000000119209,
+              "activationBytes": 4608,
+              "requestBytes": 4924,
+              "responseBytes": 222,
+              "roundTripMs": 600.8000000119209,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                6030,
+                3010,
+                3020
+              ]
+            },
+            {
+              "step": 10,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 1,
+              "splitToken": 1,
+              "finite": true,
+              "baselineMs": 21.200000047683716,
+              "baselineSessionMs": 20.600000023841858,
+              "firstMs": 6.400000035762787,
+              "secondMs": 14.300000011920929,
+              "splitMs": 587.5,
+              "boundaryAndSecondMs": 581.8000000119209,
+              "activationBytes": 4608,
+              "requestBytes": 4922,
+              "responseBytes": 204,
+              "roundTripMs": 580.8000000119209,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                6633,
+                3311,
+                3322
+              ]
+            },
+            {
+              "step": 11,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 9690,
+              "splitToken": 9690,
+              "finite": true,
+              "baselineMs": 22.5,
+              "baselineSessionMs": 22,
+              "firstMs": 8.099999964237213,
+              "secondMs": 11.799999952316284,
+              "splitMs": 605.8000000119209,
+              "boundaryAndSecondMs": 598.5999999642372,
+              "activationBytes": 4608,
+              "requestBytes": 4922,
+              "responseBytes": 225,
+              "roundTripMs": 597.3999999761581,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                7236,
+                3612,
+                3624
+              ]
+            }
+          ]
+        },
+        {
+          "name": "longer",
+          "textBeforeEos": "The sky looks blue on a clear day because the amount of",
+          "steps": [
+            {
+              "step": 0,
+              "prefill": true,
+              "inputTokens": 24,
+              "exactHashMatch": true,
+              "baselineToken": 504,
+              "splitToken": 504,
+              "finite": true,
+              "baselineMs": 48.700000047683716,
+              "baselineSessionMs": 48.10000002384186,
+              "firstMs": 12.599999964237213,
+              "secondMs": 27,
+              "splitMs": 2280.7999999523163,
+              "boundaryAndSecondMs": 2269.400000035763,
+              "activationBytes": 110592,
+              "requestBytes": 111009,
+              "responseBytes": 208,
+              "roundTripMs": 2267.899999976158,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                7839,
+                3913,
+                3926
+              ]
+            },
+            {
+              "step": 1,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 6376,
+              "splitToken": 6376,
+              "finite": true,
+              "baselineMs": 23.100000023841858,
+              "baselineSessionMs": 22.69999998807907,
+              "firstMs": 9.899999976158142,
+              "secondMs": 11.400000035762787,
+              "splitMs": 619.1000000238419,
+              "boundaryAndSecondMs": 610.3999999761581,
+              "activationBytes": 4608,
+              "requestBytes": 4924,
+              "responseBytes": 225,
+              "roundTripMs": 609,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                8442,
+                4214,
+                4228
+              ]
+            },
+            {
+              "step": 2,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 5117,
+              "splitToken": 5117,
+              "finite": true,
+              "baselineMs": 23.600000023841858,
+              "baselineSessionMs": 23.30000001192093,
+              "firstMs": 5.800000011920929,
+              "secondMs": 10.300000011920929,
+              "splitMs": 416.89999997615814,
+              "boundaryAndSecondMs": 412,
+              "activationBytes": 4608,
+              "requestBytes": 4925,
+              "responseBytes": 225,
+              "roundTripMs": 410.80000001192093,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                9045,
+                4515,
+                4530
+              ]
+            },
+            {
+              "step": 3,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 4461,
+              "splitToken": 4461,
+              "finite": true,
+              "baselineMs": 20.69999998807907,
+              "baselineSessionMs": 20.30000001192093,
+              "firstMs": 8,
+              "secondMs": 11.800000011920929,
+              "splitMs": 553.3000000119209,
+              "boundaryAndSecondMs": 546.1999999880791,
+              "activationBytes": 4608,
+              "requestBytes": 4925,
+              "responseBytes": 207,
+              "roundTripMs": 545.1000000238419,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                9648,
+                4816,
+                4832
+              ]
+            },
+            {
+              "step": 4,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 335,
+              "splitToken": 335,
+              "finite": true,
+              "baselineMs": 21,
+              "baselineSessionMs": 20.5,
+              "firstMs": 6,
+              "secondMs": 10.599999964237213,
+              "splitMs": 922.4000000357628,
+              "boundaryAndSecondMs": 917.6999999880791,
+              "activationBytes": 4608,
+              "requestBytes": 4925,
+              "responseBytes": 224,
+              "roundTripMs": 916.3000000119209,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                10251,
+                5117,
+                5134
+              ]
+            },
+            {
+              "step": 5,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 253,
+              "splitToken": 253,
+              "finite": true,
+              "baselineMs": 19.099999964237213,
+              "baselineSessionMs": 18.80000001192093,
+              "firstMs": 7.399999976158142,
+              "secondMs": 10,
+              "splitMs": 803.1000000238419,
+              "boundaryAndSecondMs": 796.3999999761581,
+              "activationBytes": 4608,
+              "requestBytes": 4924,
+              "responseBytes": 208,
+              "roundTripMs": 795.2999999523163,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                10854,
+                5418,
+                5436
+              ]
+            },
+            {
+              "step": 6,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 2437,
+              "splitToken": 2437,
+              "finite": true,
+              "baselineMs": 22.69999998807907,
+              "baselineSessionMs": 22.30000001192093,
+              "firstMs": 5.900000035762787,
+              "secondMs": 13.5,
+              "splitMs": 688.1999999880791,
+              "boundaryAndSecondMs": 683.4000000357628,
+              "activationBytes": 4608,
+              "requestBytes": 4924,
+              "responseBytes": 211,
+              "roundTripMs": 682,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                11457,
+                5719,
+                5738
+              ]
+            },
+            {
+              "step": 7,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 1194,
+              "splitToken": 1194,
+              "finite": true,
+              "baselineMs": 21.80000001192093,
+              "baselineSessionMs": 21.400000035762787,
+              "firstMs": 6.399999976158142,
+              "secondMs": 13.599999964237213,
+              "splitMs": 504.89999997615814,
+              "boundaryAndSecondMs": 499.69999998807907,
+              "activationBytes": 4608,
+              "requestBytes": 4925,
+              "responseBytes": 225,
+              "roundTripMs": 498.0999999642372,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                12060,
+                6020,
+                6040
+              ]
+            },
+            {
+              "step": 8,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 975,
+              "splitToken": 975,
+              "finite": true,
+              "baselineMs": 18.30000001192093,
+              "baselineSessionMs": 18,
+              "firstMs": 6.300000011920929,
+              "secondMs": 9.799999952316284,
+              "splitMs": 409.10000002384186,
+              "boundaryAndSecondMs": 403.69999998807907,
+              "activationBytes": 4608,
+              "requestBytes": 4925,
+              "responseBytes": 223,
+              "roundTripMs": 402.60000002384186,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                12663,
+                6321,
+                6342
+              ]
+            },
+            {
+              "step": 9,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 260,
+              "splitToken": 260,
+              "finite": true,
+              "baselineMs": 22.200000047683716,
+              "baselineSessionMs": 21.600000023841858,
+              "firstMs": 8.899999976158142,
+              "secondMs": 10.699999988079071,
+              "splitMs": 402.39999997615814,
+              "boundaryAndSecondMs": 394.89999997615814,
+              "activationBytes": 4608,
+              "requestBytes": 4924,
+              "responseBytes": 224,
+              "roundTripMs": 393.30000001192093,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                13266,
+                6622,
+                6644
+              ]
+            },
+            {
+              "step": 10,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 1902,
+              "splitToken": 1902,
+              "finite": true,
+              "baselineMs": 21.399999976158142,
+              "baselineSessionMs": 21.19999998807907,
+              "firstMs": 6.799999952316284,
+              "secondMs": 11.899999976158142,
+              "splitMs": 888.1000000238419,
+              "boundaryAndSecondMs": 882.2999999523163,
+              "activationBytes": 4608,
+              "requestBytes": 4924,
+              "responseBytes": 207,
+              "roundTripMs": 880.9000000357628,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                13869,
+                6923,
+                6946
+              ]
+            },
+            {
+              "step": 11,
+              "prefill": false,
+              "inputTokens": 1,
+              "exactHashMatch": true,
+              "baselineToken": 282,
+              "splitToken": 282,
+              "finite": true,
+              "baselineMs": 20,
+              "baselineSessionMs": 19.600000023841858,
+              "firstMs": 8.699999988079071,
+              "secondMs": 15.899999976158142,
+              "splitMs": 694.8000000119209,
+              "boundaryAndSecondMs": 687.3999999761581,
+              "activationBytes": 4608,
+              "requestBytes": 4925,
+              "responseBytes": 224,
+              "roundTripMs": 686,
+              "cacheTensors": [
+                30,
+                30
+              ],
+              "gpuDispatches": [
+                14472,
+                7224,
+                7248
+              ]
+            }
+          ]
+        }
+      ],
+      "relayAddress": [
+        {
+          "Relay": "https://euc1-1.relay.n0.iroh.link./"
+        }
+      ],
+      "decodeRequestBytes": [
+        4922,
+        4923,
+        4924,
+        4925
+      ],
+      "decodeReplyBytes": [
+        204,
+        205,
+        207,
+        208,
+        211,
+        222,
+        223,
+        224,
+        225
+      ]
+    }
+  }
+}
