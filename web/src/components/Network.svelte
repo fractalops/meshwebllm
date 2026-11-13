@@ -15,6 +15,9 @@
   import { MODELS } from "../config";
   import { count, workerStatus, type NetworkHistory } from "../network-state";
   import Icon from "./Icon.svelte";
+  import WorkerDetails from "./WorkerDetails.svelte";
+  import { chatCandidates } from "../chat-client";
+  import { executionMode, relativeSeen } from "../network-state";
   interface Props {
     members: Member[];
     neighbors: number;
@@ -38,7 +41,11 @@
   let query = $state(""),
     filter = $state<string | null>("all");
   const live = $derived(members.filter((m) => !m.stale));
-  const ready = $derived(live.filter((m) => m.info.state === "idle").length);
+  let selectedId = $state<string | null>(null);
+  const selected = $derived(members.find((m) => m.id === selectedId));
+  const ready = $derived(
+    live.filter((m) => m.info.state === "idle" && m.info.waiting < 2).length,
+  );
   const active = $derived(live.reduce((n, m) => n + count(m.info.active), 0));
   const queued = $derived(live.reduce((n, m) => n + count(m.info.waiting), 0));
   const tokens = $derived(
@@ -51,7 +58,10 @@
       return {
         ...model,
         workers: workers.length,
-        ready: workers.filter((m) => m.info.state === "idle").length,
+        ready: chatCandidates(workers, model.id).filter(
+          (m) => m.info.state === "idle",
+        ).length,
+        accepting: chatCandidates(workers, model.id).length,
       };
     }),
   );
@@ -99,14 +109,18 @@
       .join(" "),
   );
   const latest = $derived(history.samples.at(-1)?.at);
+  const now = $derived(latest ?? Date.now());
+  const availableModels = $derived(
+    models.filter((m) => m.accepting > 0).length,
+  );
 </script>
 
 <div class="dashboard">
   <header class="dashboard-heading">
     <div>
-      <span class="eyebrow">POOL / OVERVIEW</span>
+      <span class="eyebrow">COMPUTE / POOL</span>
       <h1>Network</h1>
-      <p>The compute available to this browser, right now.</p>
+      <p>Workers, models, and requests visible to this browser.</p>
     </div>
     <div class="dashboard-live">
       <span
@@ -123,36 +137,39 @@
       >
     </div>
   </header>
-  <div class="metric-grid" aria-label="Network metrics">
-    <div class="metric-card">
-      <span>Available workers</span><strong
-        >{ready}<small>/ {live.length}</small></strong
-      >
-      <p>
-        {live.length
-          ? `${live.length - ready} loading, busy, or paused`
-          : "Waiting for the first worker"}
-      </p>
+  <dl class="summary-strip" aria-label="Network metrics">
+    <div>
+      <dt>Ready workers</dt>
+      <dd>
+        <i class="status-dot" class:online={ready > 0}></i>{ready}<small
+          >/ {live.length} online</small
+        >
+      </dd>
     </div>
-    <div class="metric-card">
-      <span>Active requests</span><strong>{format(active)}</strong>
-      <p>{format(queued)} waiting in worker queues</p>
+    <div>
+      <dt>Running requests</dt>
+      <dd>{format(active)}<small>workers in view</small></dd>
     </div>
-    <div class="metric-card">
-      <span>Completed requests</span><strong>{format(served)}</strong>
-      <p>Reported by workers in view</p>
+    <div>
+      <dt>Queued requests</dt>
+      <dd>{format(queued)}<small>waiting for a worker</small></dd>
     </div>
-    <div class="metric-card">
-      <span>Tokens generated</span><strong>{format(tokens)}</strong>
-      <p>Reported by workers in view</p>
+    <div>
+      <dt>Available models</dt>
+      <dd>
+        <i class="status-dot" class:online={availableModels > 0}
+        ></i>{availableModels}<small>/ {MODELS.length} supported</small>
+      </dd>
     </div>
-  </div>
+  </dl>
 
   <div class="dashboard-grid">
     <section class="dash-panel workers-panel" aria-labelledby="workers-title">
       <div class="panel-heading">
         <h2 id="workers-title">Workers <span>{members.length}</span></h2>
-        <span class="panel-meta">LIVE ROSTER</span>
+        <span class="panel-meta"
+          >{live.length} online · {neighbors} connected peers</span
+        >
       </div>
       <div class="worker-filters">
         <Field
@@ -169,6 +186,7 @@
             { value: "all", label: "All states" },
             { value: "available", label: "Available" },
             { value: "answering", label: "Answering" },
+            { value: "queue full", label: "Queue full" },
             { value: "loading", label: "Loading" },
             { value: "paused", label: "Paused" },
             { value: "offline", label: "Offline" },
@@ -182,10 +200,10 @@
             ><SelectItem value="all">All states</SelectItem><SelectItem
               value="available">Available</SelectItem
             ><SelectItem value="answering">Answering</SelectItem><SelectItem
-              value="loading">Loading</SelectItem
-            ><SelectItem value="paused">Paused</SelectItem><SelectItem
-              value="offline">Offline</SelectItem
-            ></SelectContent
+              value="queue full">Queue full</SelectItem
+            ><SelectItem value="loading">Loading</SelectItem><SelectItem
+              value="paused">Paused</SelectItem
+            ><SelectItem value="offline">Offline</SelectItem></SelectContent
           >
         </Select>
       </div>
@@ -196,67 +214,80 @@
           >
           <thead
             ><tr
-              ><th scope="col">Model / worker</th><th scope="col">State</th><th
-                scope="col"
-                class="numeric">Queue</th
-              ><th scope="col" class="numeric">Last rate</th><th
-                scope="col"
-                class="numeric">Requests</th
-              ><th scope="col"><span class="sr-only">Chat</span></th></tr
+              ><th scope="col">Worker / model</th><th scope="col">Execution</th
+              ><th scope="col">State</th><th scope="col" class="numeric"
+                >Queue</th
+              ><th scope="col" class="numeric">Last rate</th><th scope="col"
+                >Last seen</th
+              ><th scope="col"><span class="sr-only">Actions</span></th></tr
             ></thead
           >
           <tbody
-            >{#each visible as member (member.id)}<tr>
+            >{#each visible as member (member.id)}
+              <tr class:selected={selectedId === member.id}>
                 <td
-                  ><div class="table-model">
+                  ><Button
+                    class="worker-link"
+                    aria-label={`Inspect worker ${shortId(member.id)}`}
+                    onclick={() => (selectedId = member.id)}
+                  >
                     <Icon
-                      name={member.info.adapter.includes("2 devices")
+                      name={executionMode(member) === "Two-device team"
                         ? "network"
                         : "device"}
                       size={18}
                     />
-                    <div>
-                      <strong>{name(member.info.model)}</strong><span
-                        title={member.id}
+                    <span
+                      ><strong>{name(member.info.model)}</strong><code
                         >{shortId(member.id)}{member.id === selfId
                           ? " · This device"
-                          : ""}</span
-                      ><small>{member.info.adapter}</small>
-                    </div>
-                  </div></td
+                          : ""}</code
+                      ></span
+                    >
+                  </Button></td
+                >
+                <td
+                  ><span class="execution-label">{executionMode(member)}</span
+                  ></td
                 >
                 <td
                   ><span
                     class="state-pill"
                     class:busy={member.info.state === "busy" && !member.stale}
-                    ><i
+                  >
+                    <i
                       class="status-dot"
-                      class:online={member.info.state === "idle" &&
-                        !member.stale}
+                      class:online={workerStatus(member) === "Available"}
                     ></i>{workerStatus(member)}{typeof member.info.state ===
                       "object" && !member.stale
-                      ? ` ${Math.round(member.info.state.loading.percent)}%`
-                      : ""}</span
-                  ></td
+                      ? ` ${Math.round(Math.min(100, count(member.info.state.loading.percent)))}%`
+                      : ""}
+                  </span></td
                 >
-                <td class="numeric">{format(member.info.waiting)}</td><td
-                  class="numeric"
+                <td class="numeric"
+                  >{member.stale ? "—" : format(member.info.waiting)}</td
+                >
+                <td class="numeric"
                   >{member.info.tokensPerSec > 0 && !member.stale
                     ? `${count(member.info.tokensPerSec).toFixed(1)} t/s`
                     : "—"}</td
-                ><td class="numeric">{format(member.info.served)}</td>
+                >
+                <td class="last-seen" title={time(member.lastSeenMs)}
+                  >{relativeSeen(member.lastSeenMs, now)}</td
+                >
                 <td
                   ><Button
                     class="icon-button small"
                     aria-label={`Chat with ${name(member.info.model)}`}
-                    disabled={!MODELS.some((m) => m.id === member.info.model) ||
-                      member.stale ||
-                      !["idle", "busy"].includes(String(member.info.state))}
+                    disabled={!models.some(
+                      (m) => m.id === member.info.model && m.accepting > 0,
+                    )}
                     onclick={() => onchat(member.info.model)}
-                    ><Icon name="external" size={17} /></Button
+                    ><Icon name="chat" size={17} /></Button
                   ></td
                 >
-              </tr>{/each}</tbody
+              </tr>
+            {/each}</tbody
           >
         </table>
       </div>
@@ -281,7 +312,9 @@
         </div>{/if}
       <div class="panel-footer">
         {visible.length} of {members.length} workers
-        <span>Last rate = last completed request</span>
+        <span
+          >Select a worker for details · Rate from last completed request</span
+        >
       </div>
     </section>
 
@@ -293,26 +326,24 @@
       <div class="model-capacity-list">
         {#each models as model (model.id)}<div class="model-capacity">
             <div>
-              <strong>{model.name}</strong><span
-                >{model.ready
-                  ? `${model.ready} available`
-                  : model.workers
-                    ? "Workers busy or preparing"
-                    : "No workers"}</span
+              <strong>{model.name}</strong><span class="availability-label"
+                ><i class="status-dot" class:online={model.accepting > 0}
+                ></i>{model.ready
+                  ? `${model.ready} ready now`
+                  : model.accepting
+                    ? "Accepting queued requests"
+                    : model.workers
+                      ? "No capacity right now"
+                      : "No workers"}</span
               >
             </div>
             <Button
               class="icon-button small"
               aria-label={`Choose ${model.name}`}
-              disabled={!model.workers}
+              disabled={!model.accepting}
               onclick={() => onchat(model.id)}
               ><Icon name="external" size={17} /></Button
             >
-            <div class="capacity-track" aria-hidden="true">
-              <span
-                style:width={`${model.workers ? (model.ready / model.workers) * 100 : 0}%`}
-              ></span>
-            </div>
             <small
               >{model.workers} worker{model.workers === 1
                 ? ""
@@ -322,7 +353,9 @@
             >
           </div>{/each}
       </div>
-      <div class="panel-footer">A two-device team counts as one worker.</div>
+      <div class="panel-footer">
+        Chat chooses a worker for your model. A team counts as one worker.
+      </div>
     </section>
 
     <section class="dash-panel chart-panel" aria-labelledby="activity-title">
@@ -355,48 +388,9 @@
         ><span>{latest ? time(latest) : "—"}</span>
       </div>
       <div class="panel-footer">
-        Observed in this tab <span>Up to 3 minutes · 2-second samples</span>
-      </div>
-    </section>
-
-    <section
-      class="dash-panel connection-panel"
-      aria-labelledby="connection-title"
-    >
-      <div class="panel-heading">
-        <h2 id="connection-title">Connection</h2>
-        <span class="panel-meta">IROH</span>
-      </div>
-      <dl class="connection-grid">
-        <div>
-          <dt>Connected peers</dt>
-          <dd>{neighbors}</dd>
-        </div>
-        <div>
-          <dt>State</dt>
-          <dd>
-            {status === "connected"
-              ? "Connected"
-              : status === "error"
-                ? "Failed"
-                : "Finding peers"}
-          </dd>
-        </div>
-        <div class="wide">
-          <dt>Pool</dt>
-          <dd>meshwebllm/pool/v1</dd>
-        </div>
-        <div class="wide">
-          <dt>This device</dt>
-          <dd class="endpoint-id">{selfId || "Connecting…"}</dd>
-        </div>
-      </dl>
-      {#if error}<p class="dashboard-error">{error}</p>
-        <Button class="button subtle reconnect" onclick={onretry}
-          >Reconnect</Button
-        >{/if}
-      <div class="panel-footer">
-        Peer connections include browsers here to chat.
+        Up to 3 minutes · 2-second samples <span
+          >{format(served)} completed · {format(tokens)} tokens from workers in view</span
+        >
       </div>
     </section>
 
@@ -419,8 +413,64 @@
         </p>{/if}
     </section>
   </div>
+  <details class="connection-disclosure" open={!!error}>
+    <summary
+      ><span
+        ><i class="status-dot" class:online={status === "connected"}
+        ></i>Connection details</span
+      ><span>{neighbors} peers · iroh <Icon name="chevron" size={14} /></span
+      ></summary
+    >
+    <dl class="connection-grid">
+      <div>
+        <dt>Connected peers</dt>
+        <dd>{neighbors}</dd>
+      </div>
+      <div>
+        <dt>State</dt>
+        <dd>
+          {status === "connected"
+            ? "Connected"
+            : status === "error"
+              ? "Failed"
+              : "Finding peers"}
+        </dd>
+      </div>
+      <div class="wide">
+        <dt>Pool</dt>
+        <dd>meshwebllm/pool/v1</dd>
+      </div>
+      <div class="wide">
+        <dt>This device</dt>
+        <dd class="endpoint-id">{selfId || "Connecting…"}</dd>
+      </div>
+    </dl>
+    {#if error}<p class="dashboard-error">{error}</p>
+      <Button class="button subtle reconnect" onclick={onretry}
+        >Reconnect</Button
+      >{/if}
+    <div class="panel-footer">
+      Peer connections include browsers here to chat.
+    </div>
+  </details>
+
   <p class="dashboard-note">
     Metrics are reported by workers currently in view, not lifetime pool totals.
     Availability can change when a browser closes or goes to sleep.
   </p>
 </div>
+
+<WorkerDetails
+  id={selectedId}
+  member={selected}
+  {selfId}
+  {history}
+  {now}
+  canChat={!!selected &&
+    models.some((m) => m.id === selected.info.model && m.accepting > 0)}
+  onclose={() => (selectedId = null)}
+  onchat={(model) => {
+    selectedId = null;
+    onchat(model);
+  }}
+/>

@@ -19,6 +19,8 @@ export interface NetworkHistory {
 export function workerStatus(member: Member): string {
   if (member.stale) return "Offline";
   if (typeof member.info.state === "object") return "Loading";
+  if (member.info.state === "idle" && member.info.waiting >= 2)
+    return "Queue full";
   return { idle: "Available", busy: "Answering", paused: "Paused" }[
     member.info.state
   ];
@@ -87,4 +89,19 @@ export class NetworkTimeline {
     };
     return this.history;
   }
+}
+
+/** The current publisher appends this marker only for a split coordinator.
+ * It describes the reported configuration, not independent stage health. */
+export function executionMode(member: Member): string {
+  return member.info.adapter.endsWith(" · 2 devices")
+    ? "Two-device team"
+    : "Single device";
+}
+export function relativeSeen(at: number, now: number): string {
+  const seconds = Math.max(0, Math.floor((now - at) / 1000));
+  if (seconds < 5) return "Just now";
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  return `${Math.floor(seconds / 3600)}h ago`;
 }

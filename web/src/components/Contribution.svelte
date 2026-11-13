@@ -90,7 +90,9 @@
     <div class="device-heading">
       <Icon name="device" size={18} /><span>Your device</span><span
         class="status-dot"
-        class:online={running && !paused && progress.phase !== "error"}
+        class:online={running &&
+          !paused &&
+          (progress.phase === "ready" || progress.phase === "busy")}
       ></span>
     </div>
     <strong
@@ -153,7 +155,8 @@
       <div class="sharing-status" class:error={progress.phase === "error"}>
         <span
           class="status-dot"
-          class:online={progress.phase === "ready" || progress.phase === "busy"}
+          class:online={!paused &&
+            (progress.phase === "ready" || progress.phase === "busy")}
         ></span>
         <div>
           <strong>{contributingModel}</strong>

@@ -49,7 +49,10 @@
           ><span class="option-description">{model.description}</span><span
             class="option-availability"
             class:available={chatCandidates(members, model.id).length > 0}
-            >{chatCandidates(members, model.id).length
+            ><i
+              class="status-dot"
+              class:online={chatCandidates(members, model.id).length > 0}
+            ></i>{chatCandidates(members, model.id).length
               ? `${chatCandidates(members, model.id).length} available`
               : "No workers"}</span
           >
