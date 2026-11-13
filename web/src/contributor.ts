@@ -110,16 +110,22 @@ export class Contributor {
     this.loading = loading;
     this.node.setPaused(true);
     this.update({ phase: "preparing", message: "Getting ready" });
+    let unavailable = false;
     const options: RuntimeOptions = {
       signal: loading.signal,
       progress: (p) => {
-        if (this.version === version) this.update(p);
+        if (this.version === version && !unavailable) this.update(p);
       },
       unavailable: (reason) => {
-        if (this.version !== version) return;
+        if (this.version !== version || unavailable) return;
+        unavailable = true;
         this.node.setPaused(true);
         this.generation?.abort();
         this.update({ phase: "error", message: reason });
+        this.loading?.abort();
+        const runtime = this.runtime;
+        this.runtime = undefined;
+        void runtime?.dispose().catch(() => {});
       },
     };
     try {

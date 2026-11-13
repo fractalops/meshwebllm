@@ -58,6 +58,8 @@ npm ci
 npm run dev
 ```
 
+The dev server disables file watching so edits cannot silently reload a live provider and destroy its invitation. Reload explicitly after changes.
+
 The runtime lives inside the app for now: [architecture decision](docs/adr/0001-browser-runtime-in-product.md), [runtime design and verification](docs/runtime.md). The original [experiments](experiments/layer-split/README.md) retain the numerical correctness evidence.
 
 ```sh

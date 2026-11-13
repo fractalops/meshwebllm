@@ -117,7 +117,9 @@ function render() {
         ? "Send the invitation to your other device"
         : "First load may take a moment";
   }
-  $("copyInvite").hidden = !contributor?.invite;
+  const canInvite = !!contributor?.invite && progress?.phase !== "error";
+  $("copyInvite").hidden = !canInvite;
+  if (!canInvite) $("inviteLink").hidden = true;
   $("teamTopology").hidden = !(running && contributor?.mode === "shared");
   chat.update(session?.node, all, session?.node.endpointId() ?? "");
   $("readyCount").textContent = String(
@@ -199,14 +201,34 @@ $("stopContribution").onclick = () => {
   void contributor?.stop().catch((e) => toast(String(e)));
 };
 $("copyInvite").onclick = async () => {
-  if (!contributor?.invite) return;
+  const invite = contributor?.invite;
+  if (!invite) return;
+  const field = $<HTMLInputElement>("inviteLink");
+  field.value = invitationUrl(invite);
+  field.hidden = false;
+  field.focus();
+  field.select();
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    await navigator.clipboard.writeText(invitationUrl(contributor.invite));
-    toast("Invitation copied. Open it on the other device.");
+    await Promise.race([
+      navigator.clipboard.writeText(field.value),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error("Clipboard unavailable")),
+          2000,
+        );
+      }),
+    ]);
+    if (contributor?.invite === invite)
+      toast("Invitation copied. Open it on the other device.");
   } catch {
-    toast("Clipboard is unavailable in this browser.");
+    if (contributor?.invite === invite)
+      toast("Select and copy the invitation link above.");
+  } finally {
+    clearTimeout(timer);
   }
 };
+
 $("joinTeam").onclick = () => {
   if (!invitation || !contributor) return;
   if (contributor.running)

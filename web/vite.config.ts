@@ -7,7 +7,13 @@ export default defineConfig({
   build: { target: "es2022" },
   worker: { format: "es" },
   // Reloading a live provider destroys its peer identity and in-memory seed store.
-  server: { hmr: false, host: "127.0.0.1", port: 5175, strictPort: true },
+  server: {
+    hmr: false,
+    watch: null,
+    host: "127.0.0.1",
+    port: 5175,
+    strictPort: true,
+  },
   plugins: [
     {
       name: "local-model-fixture",
