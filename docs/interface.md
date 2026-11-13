@@ -25,3 +25,9 @@ Keep the main flow in product terms: model, conversation, worker, and sharing. P
 Also check real browser inference, narrow layouts, keyboard model selection, cancellation, and sharing before release. jsdom does not validate GPU execution or layout.
 
 As of 2026-11-13, npm audit reports two low-severity development-tool findings from the Svelte Vite plugin's deepmerge dependency, with no patched version available. There are no moderate, high, or critical findings in the current lockfile. Recheck this when upgrading the toolchain.
+
+## Verification for 0.3.0
+
+Local checks passed: 22 Node tests, six component/lifecycle tests, svelte-check with no errors or warnings, and the production build. A Chrome desktop chat received the Paris answer from an existing 360M worker over iroh. The 390 × 844 layout, mobile navigation, model selection, keyboard selection, and two-device sharing choices were checked in Chrome.
+
+The runtime output-head transformation passed CPU numerical checks. Whole and split WebGPU execution with that transformation still need verification before deployment; browser control became unavailable during the final check. Earlier GPU checks in `runtime.md` cover the previous runtime, not this transformation.
